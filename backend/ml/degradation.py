@@ -5,13 +5,17 @@ interpretability (feature importances), fast CPU inference. Documented in
 docs/engineering-decisions.md.
 """
 from __future__ import annotations
+
+import json
 from pathlib import Path
+
 import joblib
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
-from backend.ml.features import DEGRADATION_FEATURES, TARGET_DEGRADED
+
+from backend.ml.features import DEGRADATION_FEATURES
 
 MODEL_PATH = Path("ml/models/demo/degradation_rf.pkl")
 
@@ -43,7 +47,7 @@ def train_degradation(df: pd.DataFrame) -> dict:
     }
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump({"model": clf, "features": DEGRADATION_FEATURES, "metrics": metrics, "version": "v1"}, MODEL_PATH)
-    (MODEL_PATH.parent / "degradation_metrics.json").write_text(__import__("json").dumps(metrics, indent=2))
+    (MODEL_PATH.parent / "degradation_metrics.json").write_text(json.dumps(metrics, indent=2))
     return metrics
 
 

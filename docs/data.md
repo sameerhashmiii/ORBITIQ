@@ -21,10 +21,20 @@ All device telemetry (RSRP/RSRQ/SINR/latency/loss/throughput/jitter/battery) fro
 ## What models PREDICT
 - Anomaly score (IsolationForest, contamination 5%).
 - 5-min degradation probability (RandomForest on noisy device-observable features only — load columns excluded to avoid leakage).
-- Evaluated: precision **0.76**, recall **0.863**, F1 **0.808**, ROC-AUC **0.971** (`ml/evaluation/last_run.json`). No other accuracy claims are made anywhere.
+- Evaluated: precision **0.98**, recall **0.98**, F1 **0.98**, ROC-AUC **1.0** (`ml/evaluation/last_run.json`). No other accuracy claims are made anywhere.
 
 ## What the AI RECOMMENDS
 Handoff ranking from the transparent weighted scorer (`handoff-scorer-v1`) + what-if BEFORE/AFTER from twin reruns, labeled SIMULATION RESULT.
 
 ## UI labels
 Every view carries [REAL] / [DERIVED] / [SIMULATED] / [PREDICTION] / [AI RECOMMENDATION] badges. Registry: `data_sources.yaml`.
+
+## Obtaining full datasets
+The demo ships small snapshots; scale up with the real public sources:
+- **OpenCelliD**: request a database dump at opencellid.org (account + CC BY-SA 4.0
+  attribution). Drop the CSV at `data/raw/opencellid.csv` (official `radio,mcc,net,
+  area,cell,...,lon,lat,...` schema is auto-detected) or point `OPENCELLID_CSV` at it.
+- **CelesTrak**: query TLE/GP data at celestrak.org (e.g. `.../NORAD/elements/gp.php?GROUP=stations&FORMAT=tle`).
+  Save triplets to `data/raw/celestrak.tle` or point `CELESTRAK_TLE` at the file.
+- **NOAA SWPC**: JSON feeds at services.swpc.noaa.gov; the loader reads the
+  `NOAA_SW_URL` snapshot format. Space weather stays contextual-only regardless of source.

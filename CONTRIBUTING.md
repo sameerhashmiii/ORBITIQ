@@ -13,7 +13,7 @@ python ml/training/train_all.py                                    # reproduce M
 python -m pytest tests -q --cov=backend --cov-report=term-missing  # backend tests, target >80%
 cd frontend && ./node_modules/.bin/tsc --noEmit                    # type check
 python scripts/check_overflow.py                                   # layout regression, 0 px tolerance
-ruff check backend ml tests                                        # lint
+python -m ruff check backend ml tests scripts                      # lint (policy: pyproject.toml)
 python -m mypy backend --ignore-missing-imports                    # types
 ```
 

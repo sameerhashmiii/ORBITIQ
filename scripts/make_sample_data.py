@@ -6,7 +6,6 @@ LEO elements for demo propagation (clearly NOT SpaceX proprietary data).
 """
 import csv
 import json
-import math
 import random
 from pathlib import Path
 
@@ -19,7 +18,7 @@ CENTER_LAT, CENTER_LON = 37.7749, -122.4194
 
 
 def make_cells(n: int = 1500) -> None:
-    rng = random.Random(SEED)
+    rng = random.Random(SEED)  # noqa: S311 - deterministic sample data, not crypto
     SAMPLE.mkdir(parents=True, exist_ok=True)
     radios = ["LTE"] * 60 + ["NR"] * 25 + ["UMTS"] * 10 + ["GSM"] * 5
     with open(SAMPLE / "opencellid_sample.csv", "w", newline="") as f:
@@ -39,7 +38,7 @@ def make_tles(n: int = 24) -> None:
     # Valid-format synthetic LEO TLEs (demo only). Checksum-safe enough for sgp4 demo;
     # sgp4 validates format, so we construct lines carefully via fixed template.
     # Inclination ~53deg, alt ~550km style mean motion ~15.06 rev/day.
-    rng = random.Random(SEED)
+    rng = random.Random(SEED)  # noqa: S311 - deterministic sample data, not crypto
     lines = []
     base_mm = 15.06
     for i in range(n):

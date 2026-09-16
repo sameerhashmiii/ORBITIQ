@@ -1,18 +1,24 @@
 """ORBITIQ FastAPI backend — versioned APIs over the digital twin + ML + copilot."""
 from __future__ import annotations
+
 import logging
 import time
+import uuid
+from datetime import datetime
 from typing import Optional
-from fastapi import FastAPI, Query, HTTPException, Request
+
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from backend.config import get_settings
+from backend.copilot.copilot import build_context, query_llm
+from backend.data.ingest import load_cells, load_space_weather, load_tles
+from backend.models import db as models
+from backend.models.session import SessionLocal, init_db
 from backend.services.digital_twin import TWIN
 from backend.services.whatif import run_outage_scenario
-from backend.copilot.copilot import build_context, query_llm
-from backend.data.ingest import load_space_weather
 
 log = logging.getLogger("orbitiq.api")
 settings = get_settings()
@@ -29,6 +35,52 @@ LAST_PREDS: list[dict] = []
 def _ensure_loaded() -> None:
     if not TWIN.loaded:
         TWIN.load(n_cells=1500, n_devices=settings.demo_devices)
+        _seed_reference_data()
+
+
+def _save(instances: list) -> None:
+    """Best-effort persistence: the twin stays authoritative in memory;
+    Postgres (or the SQLite fallback) keeps decisions, events, and runs."""
+    if not instances:
+        return
+    try:
+        db = SessionLocal()
+        try:
+            db.add_all(instances)
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        log.warning("persist skipped (non-fatal): %s", e)
+
+
+def _seed_reference_data() -> None:
+    """Seed reference tables once: cells, satellites, data-source registry."""
+    try:
+        db = SessionLocal()
+        try:
+            if db.query(models.Cell).count() == 0:
+                for c in load_cells(limit=1500):
+                    db.add(models.Cell(cell_id=c["cell_id"], mcc=c["mcc"], mnc=c["mnc"],
+                                       tac=c["tac"], radio=c["radio"], lat=c["lat"],
+                                       lon=c["lon"], range_m=c["range_m"], samples=c["samples"]))
+            if db.query(models.Satellite).count() == 0:
+                for name, l1, l2 in load_tles():
+                    db.add(models.Satellite(sat_id=name, name=name, tle_line1=l1, tle_line2=l2))
+            if db.query(models.DataSource).count() == 0:
+                for key, source, dtype, lic, cls in [
+                    ("opencellid", "OpenCelliD", "real", "CC BY-SA 4.0", "REAL"),
+                    ("celestrak", "CelesTrak", "public orbital data", "public domain", "REAL"),
+                    ("noaa_swpc", "NOAA SWPC", "public space-weather data", "US public domain", "REAL"),
+                    ("orbitiq_sim", "ORBITIQ simulator", "simulated", "n/a", "SIMULATED"),
+                ]:
+                    db.add(models.DataSource(key=key, source=source, type=dtype,
+                                             license=lic, classification=cls))
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        log.warning("reference seed skipped (non-fatal): %s", e)
 
 
 @app.middleware("http")
@@ -44,8 +96,13 @@ async def _lazy_load_twin(request: Request, call_next):
 @app.on_event("startup")
 def _startup():
     logging.basicConfig(level=settings.log_level)
+    try:
+        init_db()
+    except Exception as e:
+        log.warning("init_db skipped (non-fatal): %s", e)
     if not TWIN.loaded:
         TWIN.load(n_cells=1500, n_devices=settings.demo_devices)
+        _seed_reference_data()
     log.info("ORBITIQ twin ready: %s", TWIN.health())
 
 
@@ -69,7 +126,7 @@ def network_health():
 
 
 @app.get("/api/v1/cells")
-def cells(limit: int = Query(200, le=2000), offset: int = 0):
+def cells(limit: int = Query(200, ge=1, le=2000), offset: int = Query(0, ge=0)):
     return {"items": TWIN.cells[offset:offset + limit], "total": len(TWIN.cells),
             "attribution": "Cellular infrastructure data: OpenCelliD (CC BY-SA 4.0)", "provenance": "REAL"}
 
@@ -85,7 +142,7 @@ def satellites(gs_lat: float = 37.7749, gs_lon: float = -122.4194):
 
 
 @app.get("/api/v1/devices")
-def devices(limit: int = Query(200, le=2000)):
+def devices(limit: int = Query(200, ge=1, le=2000)):
     return {"items": TWIN.sim.snapshot(limit), "total": len(TWIN.sim.devices), "provenance": "SIMULATED"}
 
 
@@ -100,10 +157,13 @@ def incidents():
 
 
 @app.get("/api/v1/telemetry")
-def telemetry(device_id: Optional[str] = None, limit: int = 200):
-    rows = TWIN.sim.snapshot(limit)
+def telemetry(device_id: Optional[str] = None, limit: int = Query(200, ge=1, le=2000)):
     if device_id:
+        # direct lookup across the full fleet (not just the first `limit` rows)
+        rows = TWIN.sim.snapshot(len(TWIN.sim.devices))
         rows = [r for r in rows if r["device_id"] == device_id]
+    else:
+        rows = TWIN.sim.snapshot(limit)
     return {"items": rows, "provenance": "SIMULATED"}
 
 
@@ -118,7 +178,7 @@ def space_weather():
 
 
 @app.get("/api/v1/predictions")
-def predictions(limit: int = 200):
+def predictions(limit: int = Query(200, ge=1, le=2000)):
     from backend.ml.degradation import predict_degradation
     rows = TWIN.sim.snapshot(limit)
     try:
@@ -132,11 +192,14 @@ def predictions(limit: int = 200):
     global LAST_PREDS
     LAST_PREDS = preds
     degraded = sum(1 for p in preds if p["probability"] > 0.5)
+    _save([models.Prediction(device_id=p["device_id"] or "", probability=p["probability"],
+                             confidence=p["confidence"], horizon_min=5)
+           for p in preds[:100]])  # bounded history sample, not the full poll
     return {"items": preds, "degraded_count": degraded, "horizon_min": 5, "provenance": "PREDICTION"}
 
 
 @app.get("/api/v1/anomalies")
-def anomalies(limit: int = 200):
+def anomalies(limit: int = Query(200, ge=1, le=2000)):
     from backend.ml.anomaly import score_anomaly
     rows = TWIN.sim.snapshot(limit)
     try:
@@ -159,7 +222,7 @@ class HandoffRequest(BaseModel):
 @app.get("/api/v1/recommendations")
 def recommendations(device_id: str = "dev-00001"):
     from backend.ml.handoff import recommend
-    sats = TWIN.satellite_states()[:3]
+    sats = TWIN.satellite_states(limit=3)
     cands = [{"sat_id": s["sat_id"], "signal_dbm": -88 + i * 4, "sinr_db": 8 + i * 2,
               "elevation_deg": s.get("elevation_deg") or 35, "slant_range_km": s.get("slant_range_km") or 800,
               "latency_ms": 55 - i * 8, "capacity_score": 0.6 + i * 0.12,
@@ -169,6 +232,9 @@ def recommendations(device_id: str = "dev-00001"):
     rec = recommend(device_id, cands)
     global LAST_RECS
     LAST_RECS = [rec]
+    _save([models.Recommendation(device_id=device_id, recommended_sat=rec["recommended_sat"],
+                                 confidence=rec["confidence"],
+                                 explanation={"points": rec["explanation"]})])
     return rec
 
 
@@ -178,7 +244,11 @@ def recommend_post(req: HandoffRequest):
     cands = req.candidates or []
     if not cands:
         return recommendations(req.device_id)
-    return recommend(req.device_id, cands)
+    rec = recommend(req.device_id, cands)
+    _save([models.Recommendation(device_id=req.device_id, recommended_sat=rec["recommended_sat"],
+                                 confidence=rec["confidence"],
+                                 explanation={"points": rec["explanation"]})])
+    return rec
 
 
 class SimRequest(BaseModel):
@@ -190,6 +260,14 @@ class SimRequest(BaseModel):
 def simulation_run(req: SimRequest):
     if req.scenario == "satellite_congestion":
         evts = TWIN.inject_congestion(req.sat_id)
+        _save([models.Event(event_id=e["event_id"],
+                            timestamp=datetime.fromisoformat(e["timestamp"]),
+                            type=e["type"], severity=e["severity"],
+                            lat=e["location"]["lat"], lon=e["location"]["lon"],
+                            meta={"root_cause": e["root_cause"],
+                                  "affected_devices": e["affected_devices"],
+                                  "affected_satellites": e["affected_satellites"]})
+               for e in evts])
         return {"events": evts, "health": TWIN.health(), "provenance": "SIMULATION RESULT"}
     raise HTTPException(400, f"unknown scenario {req.scenario}")
 
@@ -217,7 +295,11 @@ class DemoRequest(BaseModel):
 def demo_start(req: Optional[DemoRequest] = None):
     TWIN.load(n_cells=1500, n_devices=(req.n_devices if req else settings.demo_devices))
     evts = TWIN.inject_congestion()
-    return {"health": TWIN.health(), "events": [e["event_id"] for e in evts], "steps": [
+    health = TWIN.health()
+    _save([models.SimulationRun(run_id=f"run-{uuid.uuid4().hex[:8]}", seed=settings.simulation_seed,
+                                n_devices=health["connected_devices"], scenario="demo",
+                                summary=health)])
+    return {"health": health, "events": [e["event_id"] for e in evts], "steps": [
         "real cellular infrastructure loaded", "orbital data loaded", "satellite visibility computed",
         "simulated devices started", "satellite congestion introduced", "anomaly detected",
         "degradation predicted", "handoff recommended", "what-if ready", "copilot ready"]}
@@ -234,7 +316,11 @@ def demo_reset():
     TWIN.load(n_cells=1500, n_devices=settings.demo_devices)
     LAST_RECS.clear()
     LAST_PREDS.clear()
-    return {"reset": True, "health": TWIN.health()}
+    health = TWIN.health()
+    _save([models.SimulationRun(run_id=f"run-{uuid.uuid4().hex[:8]}", seed=settings.simulation_seed,
+                                n_devices=health["connected_devices"], scenario="reset",
+                                summary=health)])
+    return {"reset": True, "health": health}
 
 
 @app.get("/api/v1/demo/recruiter-script")

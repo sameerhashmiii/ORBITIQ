@@ -1,18 +1,18 @@
 {
-  "precision": 0.76,
-  "recall": 0.863,
-  "f1": 0.808,
-  "roc_auc": 0.971,
+  "precision": 0.98,
+  "recall": 0.98,
+  "f1": 0.98,
+  "roc_auc": 1.0,
   "n_train": 4500,
   "n_test": 1500,
   "positive_rate": 0.2,
   "importances": {
-    "latency_ms": 0.351,
-    "jitter_ms": 0.326,
-    "sinr_db": 0.117,
-    "throughput_mbps": 0.074,
-    "rsrp_dbm": 0.072,
-    "packet_loss_pct": 0.046,
-    "velocity_ms": 0.014
+    "jitter_ms": 0.462,
+    "latency_ms": 0.233,
+    "throughput_mbps": 0.114,
+    "sinr_db": 0.114,
+    "rsrp_dbm": 0.039,
+    "packet_loss_pct": 0.036,
+    "velocity_ms": 0.001
   }
 }

@@ -4,10 +4,11 @@ Mobility profiles: stationary | urban | highway | rural | train | random_walk.
 State evolves via seeded RNG (SIMULATION_SEED) — no independent random jumps.
 """
 from __future__ import annotations
+
 import math
 import random
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 PROFILES = {
     "stationary": {"speed_ms": 0.0, "turn_deg": 0.0},
@@ -47,7 +48,8 @@ class Device:
 
 class DeviceSimulator:
     def __init__(self, seed: int = 42, center: tuple[float, float] = (37.7749, -122.4194)):
-        self.rng = random.Random(seed)
+        # Seeded PRNG is required: the simulator must be deterministic (SIMULATION_SEED).
+        self.rng = random.Random(seed)  # noqa: S311 - deterministic simulation, not crypto
         self.center = center
         self.devices: dict[str, Device] = {}
 
@@ -74,11 +76,19 @@ class DeviceSimulator:
         return list(self.devices.values())
 
     def step(self, dt_s: float = 30.0, congestion: dict | None = None) -> list[Device]:
-        """Advance all devices one timestep with EMA-smoothed telemetry."""
+        """Advance all devices one timestep with EMA-smoothed telemetry.
+
+        `congestion` may target one satellite ({sat_id, sat_util}) while the
+        rest of the fleet stays at `nominal_sat_util` — congestion is local,
+        not global. Without `sat_id`, `sat_util` applies uniformly (training).
+        """
         congestion = congestion or {}
-        sat_load = congestion.get("sat_util", 0.6)
+        hot_sat = congestion.get("sat_id")
+        hot_load = congestion.get("sat_util", 0.6)
+        nominal_load = congestion.get("nominal_sat_util", hot_load)
         cell_load = congestion.get("cell_util", 0.5)
         for d in self.devices.values():
+            sat_load = hot_load if (hot_sat is None or d.serving_satellite == hot_sat) else nominal_load
             spec = PROFILES[d.profile]
             if d.profile != "stationary":
                 d.direction_deg = (d.direction_deg + self.rng.gauss(0, spec["turn_deg"])) % 360
@@ -90,7 +100,8 @@ class DeviceSimulator:
             a = 0.25
             t_rsrp = -95 - 25 * cell_load + self.rng.gauss(0, 2)
             t_sinr = 12 - 14 * max(cell_load, sat_load) + self.rng.gauss(0, 1.2)
-            t_lat = 35 + 90 * sat_load + 30 * cell_load + abs(self.rng.gauss(0, 4))
+            t_lat = (28 + 45 * sat_load + 20 * cell_load
+                     + 150 * max(0.0, sat_load - 0.75) + abs(self.rng.gauss(0, 4)))
             t_loss = max(0.0, 0.3 + 6.0 * max(0, sat_load - 0.7) + 2.0 * max(0, cell_load - 0.75) + self.rng.gauss(0, 0.2))
             t_tp = max(1.0, 60 * (1 - 0.7 * max(cell_load, sat_load)) + self.rng.gauss(0, 3))
             d.rsrp_dbm += a * (t_rsrp - d.rsrp_dbm)
@@ -100,7 +111,7 @@ class DeviceSimulator:
             d.latency_ms += a * (t_lat - d.latency_ms)
             d.packet_loss_pct += a * (t_loss - d.packet_loss_pct)
             d.throughput_mbps += a * (t_tp - d.throughput_mbps)
-            d.jitter_ms = max(1.0, d.latency_ms * 0.12 + self.rng.gauss(0, 1.5))
+            d.jitter_ms += a * (max(1.0, d.latency_ms * 0.12 + self.rng.gauss(0, 1.5)) - d.jitter_ms)
             d.battery_pct = max(0.0, d.battery_pct - dt_s * 0.0005)
         return list(self.devices.values())
 

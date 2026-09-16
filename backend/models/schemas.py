@@ -1,8 +1,10 @@
 """Shared Pydantic schemas with explicit data-provenance labels."""
 from __future__ import annotations
+
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 

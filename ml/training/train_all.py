@@ -1,11 +1,13 @@
 """Train all models on deterministic simulator output. Reproducible via SIMULATION_SEED."""
 import json
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from backend.simulation.devices import DeviceSimulator
+
 from backend.ml.anomaly import train_anomaly
 from backend.ml.degradation import train_degradation
+from backend.simulation.devices import DeviceSimulator
 
 SEED = 42
 
@@ -14,31 +16,32 @@ def build_dataset(n: int = 6000) -> pd.DataFrame:
     sim = DeviceSimulator(seed=SEED)
     sim.spawn(1200)  # small pool so each load regime contributes rows
     rows = []
-    # sweep load regimes so both classes are represented
-    for util in [0.4, 0.55, 0.7, 0.85, 0.95]:
-        sim.step(dt_s=60, congestion={"sat_util": util, "cell_util": util * 0.8})
+
+    def sweep_step(util: float) -> None:
+        # 4 steps per regime so EMA telemetry converges to the regime target
+        # (rows then represent steady-state behavior, not transients)
+        for _ in range(4):
+            sim.step(dt_s=60, congestion={"sat_util": util, "cell_util": util * 0.8})
         for d in sim.devices.values():
             rows.append({"device_id": d.device_id, "latency_ms": d.latency_ms,
                          "packet_loss_pct": d.packet_loss_pct, "throughput_mbps": d.throughput_mbps,
                          "rsrp_dbm": d.rsrp_dbm, "sinr_db": d.sinr_db, "jitter_ms": d.jitter_ms,
                          "sat_util": util, "cell_util": util * 0.8, "velocity_ms": d.velocity_ms,
                          "device_density": 150.0})
+
+    # sweep load regimes so both classes are represented
+    for util in [0.4, 0.55, 0.7, 0.85, 0.95]:
+        sweep_step(util)
     # repeat sweeps with fresh noise path until we have n rows
     while len(rows) < n:
         for util in [0.55, 0.7, 0.85, 0.95, 0.4]:
-            sim.step(dt_s=60, congestion={"sat_util": util, "cell_util": util * 0.8})
-            for d in sim.devices.values():
-                rows.append({"device_id": d.device_id, "latency_ms": d.latency_ms,
-                             "packet_loss_pct": d.packet_loss_pct, "throughput_mbps": d.throughput_mbps,
-                             "rsrp_dbm": d.rsrp_dbm, "sinr_db": d.sinr_db, "jitter_ms": d.jitter_ms,
-                             "sat_util": util, "cell_util": util * 0.8, "velocity_ms": d.velocity_ms,
-                             "device_density": 150.0})
+            sweep_step(util)
             if len(rows) >= n:
                 break
     df = pd.DataFrame(rows[:n])
     # Ground-truth label from CLEAN simulator state (future degradation outcome);
     # features below get measurement noise, so this is a genuine prediction task.
-    df["__y_clean"] = (((df["latency_ms"] > 100) | (df["packet_loss_pct"] > 2.0) | (df["throughput_mbps"] < 5))).astype(int)
+    df["__y_clean"] = ((df["latency_ms"] > 100) | (df["packet_loss_pct"] > 2.0) | (df["throughput_mbps"] < 5)).astype(int)
     # Simulate measurement noise: features are noisy observations, so the
     # degradation-label threshold is NOT trivially recoverable -> honest metrics.
     rng = np.random.RandomState(SEED)

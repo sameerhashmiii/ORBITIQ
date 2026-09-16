@@ -3,7 +3,7 @@
 **WHY HARD**: physics (orbits), scale (10k+ devices), uncertainty (noisy telemetry), and trust (every AI call must be explainable).
 **APPROACH**: right tool per subproblem — SGP4 physics for geometry, seeded simulation for behavior, RF/IsolationForest for prediction, weighted optimization for ranking, LLM only for explanation.
 **REAL DATA**: OpenCelliD + CelesTrak + NOAA, snapshotted, licensed, labeled.
-**AI/ML**: honest metrics (F1 0.808, ROC-AUC 0.971), no fake claims, leakage deliberately removed.
+**AI/ML**: honest metrics (F1 0.98, ROC-AUC 1.0), no fake claims, leakage deliberately removed.
 **DIGITAL TWIN**: 10,284 devices / 1,500 cells / 24 sats with backend aggregation.
 **OPTIMIZATION**: ranked candidates with WHY-deltas; what-if BEFORE/AFTER.
 **GENAI**: grounded copilot with refusal guardrails.

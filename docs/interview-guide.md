@@ -7,7 +7,7 @@
 5. **Positions?** `sgp4` Vallado propagation of public TLEs; GMST rotation to geodetic.
 6. **Anomaly?** IsolationForest (contamination 5%) over 6 telemetry features.
 7. **Why XGBoost/RF?** Chose RandomForest: tabular, interpretable, fast; deep learning unjustified.
-8. **Degradation prediction?** RF on noisy device-observable features (load excluded anti-leakage); 5-min horizon; F1 0.808 / ROC-AUC 0.971.
+8. **Degradation prediction?** RF on noisy device-observable features (load excluded anti-leakage); 5-min horizon; F1 0.98 / ROC-AUC 1.0.
 9. **Handoff?** Weighted scorer over signal/SINR/elevation/latency/capacity/visibility/degradation; per-factor explanation.
 10. **Why not LLM for everything?** LLM can't do geometry reliably; it explains precomputed engineering results.
 11. **Anti-hallucination?** Structured context, source attribution, refusal when data missing (`backend/copilot/copilot.py`).

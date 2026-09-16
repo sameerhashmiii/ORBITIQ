@@ -1,5 +1,10 @@
+import os
+
+os.environ.setdefault("DATABASE_URL", "sqlite:////tmp/orbitiq_test.db")
+
 import pytest
 from fastapi.testclient import TestClient
+
 from backend.main import app
 
 
@@ -128,8 +133,48 @@ def test_api_surface_sweep(client):
     assert all("recommended_action" in e for e in evts)
 
 
+def test_congestion_is_targeted(client):
+    """Congestion degrades only the target satellite's users (not the fleet)."""
+    client.post("/api/v1/demo/reset")
+    client.post("/api/v1/simulation/run", json={"scenario": "satellite_congestion"})
+    h = client.get("/api/v1/network/health").json()
+    assert 90.0 < h["network_health_pct"] < 100.0
+    assert h["predicted_incidents"] >= 1
+    client.post("/api/v1/demo/reset")
+
+
+def test_decisions_persist_to_db(client):
+    """Decisions/events land in normalized tables (SQLite fallback in tests)."""
+    from backend.models import db as models
+    from backend.models.session import SessionLocal
+    client.post("/api/v1/simulation/run", json={"scenario": "satellite_congestion"})
+    client.get("/api/v1/recommendations")
+    client.get("/api/v1/predictions?limit=20")
+    db = SessionLocal()
+    try:
+        assert db.query(models.Event).count() >= 3
+        assert db.query(models.Recommendation).count() >= 1
+        assert db.query(models.Prediction).count() >= 1
+        assert db.query(models.Cell).count() >= 1000
+        assert db.query(models.Satellite).count() >= 20
+        assert db.query(models.DataSource).count() >= 4
+    finally:
+        db.close()
+    client.post("/api/v1/demo/reset")
+
+
+def test_api_contracts_match_schemas(client):
+    """Endpoint payloads validate against the shared Pydantic schemas."""
+    from backend.models.schemas import CellSite, DeviceTelemetry, SatelliteState
+    cells = client.get("/api/v1/cells?limit=5").json()["items"]
+    assert [CellSite(**c).cell_id for c in cells]
+    sats = client.get("/api/v1/satellites").json()["items"][:5]
+    assert [SatelliteState(**s).sat_id for s in sats]
+    devs = client.get("/api/v1/devices?limit=5").json()["items"]
+    assert [DeviceTelemetry(**d).device_id for d in devs]
+
+
 def test_external_data_failure_fallback():
-    from backend.data import ingest
     import backend.data.ingest as ing
     cells = ing.load_cells(limit=10)  # works from local snapshot, no network
     assert len(cells) == 10

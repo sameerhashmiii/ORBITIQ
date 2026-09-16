@@ -44,12 +44,14 @@ def rank_candidates(candidates: list[dict]) -> list[dict]:
 
 def recommend(device_id: str, candidates: list[dict]) -> dict:
     ranked = rank_candidates(candidates)
+    if not ranked:
+        raise ValueError("no handoff candidates to rank")
     best = ranked[0]
     runner = ranked[1] if len(ranked) > 1 else best
     expl = [
         f"predicted signal is {pct(best.get('signal_dbm', -90), runner.get('signal_dbm', -95))} stronger",
-        f"estimated latency is {pct(runner.get('latency_ms', 80), best.get('latency_ms', 50))} lower",
-        f"predicted congestion is {pct(runner.get('congestion_pct', 80), best.get('congestion_pct', 40))} lower",
+        f"estimated latency is {pct(best.get('latency_ms', 50), runner.get('latency_ms', 80))} lower",
+        f"predicted congestion is {pct(best.get('congestion_pct', 40), runner.get('congestion_pct', 80))} lower",
         f"expected visibility is ~{max(0, best.get('visibility_min', 8) - runner.get('visibility_min', 4)):.0f} minutes longer",
     ]
     return {"device_id": device_id, "recommended_sat": best["sat_id"], "confidence": best["score"],
@@ -57,7 +59,8 @@ def recommend(device_id: str, candidates: list[dict]) -> dict:
             "explanation": expl, "details": ranked, "provenance": "AI RECOMMENDATION"}
 
 
-def pct(a: float, b: float) -> str:
-    if not b:
+def pct(new: float, ref: float) -> str:
+    """Percent change of `new` versus reference `ref` (guarded)."""
+    if not ref:
         return "n/a"
-    return f"{abs(a - b) / abs(b) * 100:.0f}%"
+    return f"{abs(new - ref) / abs(ref) * 100:.0f}%"

@@ -1,7 +1,9 @@
-"""DB session helper with graceful fallback to in-memory SQLite when Postgres is unavailable."""
+"""DB session helper: Postgres when DATABASE_URL points there, local SQLite file otherwise."""
 import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from backend.models.db import Base
 
 

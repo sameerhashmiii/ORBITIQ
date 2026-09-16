@@ -11,13 +11,12 @@ Documented in docs/data.md. Positions are derived from PUBLIC orbital data,
 never invented.
 """
 from __future__ import annotations
+
 import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 EARTH_R_KM = 6371.0
-MU = 398600.4418
-OMEGA_EARTH = 7.2921159e-5
 
 
 @dataclass
@@ -35,7 +34,7 @@ def propagate_tle(name: str, line1: str, line2: str, when: datetime | None = Non
     when = when or datetime.now(timezone.utc)
     sat = Satrec.twoline2rv(line1, line2)
     jd, fr = _to_jd_fr(when)
-    e, r, v = sat.sgp4(jd, fr)
+    e, r, _v = sat.sgp4(jd, fr)
     if e != 0:
         raise RuntimeError(f"SGP4 error code {e} for {name}")
     lat, lon, alt = _eci_to_geodetic(tuple(r), when)
@@ -54,11 +53,7 @@ def ground_geometry(sat_lat: float, sat_lon: float, sat_alt_km: float,
     gx, gy, gz = to_ecef(gs_lat, gs_lon, 0.0)
     dx, dy, dz = sx - gx, sy - gy, sz - gz
     slant = math.sqrt(dx * dx + dy * dy + dz * dz)
-    # elevation via law of cosines
-    r_sat = EARTH_R_KM + sat_alt_km
-    cos_el = (r_sat**2 - EARTH_R_KM**2 - slant**2) / (2 * EARTH_R_KM * slant)
-    cos_el = max(-1.0, min(1.0, cos_el))
-    # central-angle method is more stable; use dot product with up vector
+    # elevation from the local up-vector (dot product with line of sight)
     up = (gx / EARTH_R_KM, gy / EARTH_R_KM, gz / EARTH_R_KM)
     sin_el = (dx * up[0] + dy * up[1] + dz * up[2]) / slant
     sin_el = max(-1.0, min(1.0, sin_el))
@@ -126,7 +121,6 @@ def _eci_to_geodetic(r_eci_km, when: datetime) -> tuple[float, float, float]:
 
 
 def _datetime_to_jd(dt: datetime) -> float:
-    import datetime as _dt
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     a = (14 - dt.month) // 12

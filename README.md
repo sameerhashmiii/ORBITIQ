@@ -37,7 +37,7 @@ Press **▶ Run Demo** in the header (or `POST /api/v1/simulation/run`), then wo
 1. Real cellular infrastructure appears on the map (1,500 OpenCelliD-format sites).
 2. Live SGP4 satellite positions appear (24 orbital objects, elevation/slant-range/visibility per site).
 3. 10,000+ simulated devices appear as an aggregated density grid.
-4. Inject satellite congestion (utilization 72% → 94%, latency 42 → 89 ms).
+4. Inject satellite congestion (utilization 55% → 94%; device latency climbs past the 100 ms degradation threshold on the affected satellite only).
 5. AI detects the anomaly (IsolationForest scores + severity + affected grid area).
 6. AI predicts 5-minute connectivity degradation per device (probability, confidence, time-to-degradation).
 7. The optimizer ranks candidate satellites and recommends a handoff with per-factor explanation.
@@ -71,12 +71,12 @@ Measured results on held-out simulator data (`ml/evaluation/last_run.json`, repr
 
 | Measure | Result |
 |---|---:|
-| Degradation precision | 0.760 |
-| Degradation recall | 0.863 |
-| Degradation F1 | 0.808 |
-| Degradation ROC-AUC | 0.971 |
+| Degradation precision | 0.980 |
+| Degradation recall | 0.980 |
+| Degradation F1 | 0.980 |
+| Degradation ROC-AUC | 1.000 |
 | Anomaly detector (IsolationForest, 5% contamination) | scores + severity + grid area |
-| Backend tests / coverage | 13 passed / 89% |
+| Backend tests / coverage | 16 passed / 90% |
 | Frontend type check | clean (`tsc --noEmit`) |
 | Layout regression (6 routes × desktop/mobile, full AI content) | 0 px overflow |
 
@@ -87,7 +87,7 @@ These values describe the simulator domain, not real networks, and are a reprodu
 - React 18, TypeScript, Vite, MapLibre GL, nginx
 - Python 3.9+, FastAPI, Pydantic v2, SQLAlchemy 2
 - PostgreSQL 16 + PostGIS (Compose), Redis, SQLite fallback
-- scikit-learn (IsolationForest, RandomForest), sgp4 + Skyfield, SHAP-style contribution explanations
+- scikit-learn (IsolationForest, RandomForest), sgp4 + Skyfield, transparent per-factor explanations
 - Pytest + pytest-cov, Playwright (UI capture + layout regression), Ruff, mypy, Bandit
 - Docker Compose and GitHub Actions
 
@@ -117,7 +117,7 @@ docker compose down --volumes --remove-orphans
 docker compose up --build
 ```
 
-If port 5173 or 8000 is occupied, stop the background servers (`pkill -f uvicorn`, `pkill -f vite`) or change the Vite port. If the map tiles fail to load, check network access to the public MapLibre demo tiles. If predictions return 503, retrain with `python ml/training/train_all.py`. Model artifacts are committed under `ml/models/demo/` so a fresh clone works without training.
+If port 5173 or 8000 is occupied, set `FRONTEND_PORT` or `BACKEND_PORT` in `.env` (e.g. `BACKEND_PORT=8001 docker compose up --build`). If the map tiles fail to load, check network access to the public MapLibre demo tiles. If predictions return 503, retrain with `python ml/training/train_all.py`. Model artifacts are committed under `ml/models/demo/` so a fresh clone works without training.
 
 ## Development
 

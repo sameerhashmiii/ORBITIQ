@@ -1,5 +1,6 @@
 """Network event engine — deterministic scenario injector."""
 from __future__ import annotations
+
 import uuid
 from datetime import datetime, timezone
 
@@ -24,19 +25,19 @@ RECOMMENDED_ACTIONS = {
 }
 
 
-def make_event(type: str, lat: float, lon: float, severity: str = "high",
+def make_event(event_type: str, lat: float, lon: float, severity: str = "high",
                affected_devices: int = 0, affected_cells: list | None = None,
                affected_satellites: list | None = None,
                root_cause: str = "", telemetry_changes: dict | None = None) -> dict:
-    assert type in EVENT_TYPES, f"unknown event {type}"
+    assert event_type in EVENT_TYPES, f"unknown event {event_type}"
     return {
         "event_id": f"evt-{uuid.uuid4().hex[:8]}",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "type": type,
+        "type": event_type,
         "location": {"lat": lat, "lon": lon},
         "severity": severity,
         "root_cause": root_cause,
-        "recommended_action": RECOMMENDED_ACTIONS.get(type, "Investigate via copilot."),
+        "recommended_action": RECOMMENDED_ACTIONS.get(event_type, "Investigate via copilot."),
         "affected_devices": affected_devices,
         "affected_cells": affected_cells or [],
         "affected_satellites": affected_satellites or [],
@@ -48,12 +49,12 @@ def demo_congestion_scenario(center=(37.7749, -122.4194)) -> list[dict]:
     """Predefined deterministic incident: SAT congestion -> degradation (recruiter demo)."""
     lat, lon = center
     return [
-        make_event("SATELLITE_CONGESTION", lat, lon, "high", 2184, [],
+        make_event("SATELLITE_CONGESTION", lat, lon, "high", 0, [],
                    ["ORBITIQ-DEMO-07"], "offered load exceeded beam capacity",
-                   {"sat_util": [0.72, 0.94], "latency_ms": [42, 89], "packet_loss_pct": [0.4, 3.1]}),
-        make_event("SIGNAL_DEGRADATION", lat + 0.05, lon - 0.03, "medium", 1847, [],
+                   {"sat_util": [0.55, 0.94], "latency_ms": [61, 111], "packet_loss_pct": [0.4, 1.7]}),
+        make_event("SIGNAL_DEGRADATION", lat + 0.05, lon - 0.03, "medium", 0, [],
                    ["ORBITIQ-DEMO-07"], "SINR drop from congestion",
                    {"sinr_db": [9.5, 2.1]}),
-        make_event("HANDOFF_APPROACHING", lat, lon, "medium", 1847, [],
+        make_event("HANDOFF_APPROACHING", lat, lon, "medium", 0, [],
                    ["ORBITIQ-DEMO-07", "ORBITIQ-DEMO-11"], "visibility window closing in ~4 min", {}),
     ]

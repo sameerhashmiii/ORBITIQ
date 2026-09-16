@@ -1,10 +1,13 @@
 """Anomaly detection: IsolationForest over telemetry (Model 1)."""
 from __future__ import annotations
+
+from pathlib import Path
+
 import joblib
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from sklearn.ensemble import IsolationForest
+
 from backend.ml.features import ANOMALY_FEATURES
 
 MODEL_PATH = Path("ml/models/demo/anomaly_iforest.pkl")
@@ -23,13 +26,13 @@ def train_anomaly(df: pd.DataFrame) -> dict:
 def score_anomaly(rows: list[dict]) -> list[dict]:
     bundle = joblib.load(MODEL_PATH)
     clf, feats = bundle["model"], bundle["features"]
-    import pandas as pd
     X = pd.DataFrame(rows)[feats].fillna(0)
     scores = -clf.score_samples(X)
     preds = clf.predict(X)  # 1 normal, -1 anomaly
+    critical_at = float(np.percentile(scores, 90)) if len(scores) else float("inf")
     out = []
     for i, r in enumerate(rows):
-        sev = "normal" if preds[i] == 1 else ("critical" if scores[i] > np.percentile(scores, 90) else "high")
+        sev = "normal" if preds[i] == 1 else ("critical" if scores[i] > critical_at else "high")
         lat, lon = r.get("lat"), r.get("lon")
         area = f"grid:{round(lat, 1)},{round(lon, 1)}" if lat is not None and lon is not None else "unknown"
         out.append({"device_id": r.get("device_id"), "anomaly_score": round(float(scores[i]), 3),

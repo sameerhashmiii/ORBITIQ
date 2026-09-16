@@ -1,5 +1,6 @@
 """ORBITIQ global configuration. Single source of truth for env-driven settings."""
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings
 
 

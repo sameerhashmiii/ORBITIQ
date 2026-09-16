@@ -3,6 +3,12 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 # ---> Env
 .env
 # ---> Data (large raw dumps not committed)

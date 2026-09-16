@@ -5,6 +5,7 @@ telemetry. If data is missing it refuses. Without an LLM key, a deterministic
 template responder answers (so ML/network functions always work).
 """
 from __future__ import annotations
+
 import os
 
 
@@ -27,6 +28,9 @@ def build_context(question: str, twin, predictions: list | None = None,
 def answer(question: str, ctx: dict) -> dict:
     """Deterministic grounded responder (used when LLM unavailable + as fallback)."""
     q = question.lower()
+    if not ctx.get("connected_devices"):
+        return {"answer": "I don't have enough telemetry to determine the cause.",
+                "confidence": 0.0, "evidence": [], "sources": ctx["sources"]}
     if not ctx.get("recent_events") and "why" in q:
         return {"answer": "I don't have enough telemetry to determine the cause.",
                 "confidence": 0.0, "evidence": [], "sources": ctx["sources"]}
@@ -60,7 +64,6 @@ def query_llm(question: str, ctx: dict) -> dict:
         return answer(question, ctx)
     # Real LLM path: strictly grounded prompt (never raw telemetry invention)
     try:
-        import httpx  # lazy
         prompt = ("You are ORBITIQ NOC copilot. Answer ONLY from the STRUCTURED CONTEXT. "
                   "Never invent telemetry/satellite measurements. If data is missing say: "
                   "\"I don't have enough telemetry to determine the cause.\" "

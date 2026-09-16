@@ -1,11 +1,20 @@
 """Digital-twin service: owns cells, satellites, devices, aggregation (never ships raw 10k to browser)."""
 from __future__ import annotations
-import math
+
+import logging
 from datetime import datetime, timezone
+from typing import Optional
+
 from backend.data.ingest import load_cells, load_tles
-from backend.satellite.propagate import propagate_tle, ground_geometry, visibility_duration_minutes
+from backend.satellite.propagate import (
+    ground_geometry,
+    propagate_tle,
+    visibility_duration_minutes,
+)
 from backend.simulation.devices import DeviceSimulator
 from backend.simulation.events import demo_congestion_scenario
+
+log = logging.getLogger("orbitiq.twin")
 
 
 class DigitalTwin:
@@ -49,10 +58,12 @@ class DigitalTwin:
             "ai_recommendations": len(self.events),
         }
 
-    def satellite_states(self, gs_lat: float = 37.7749, gs_lon: float = -122.4194) -> list[dict]:
+    def satellite_states(self, gs_lat: float = 37.7749, gs_lon: float = -122.4194,
+                           limit: Optional[int] = None) -> list[dict]:
         now = datetime.now(timezone.utc)
         out = []
-        for name, l1, l2 in self.tles:
+        tles = self.tles[:limit] if limit else self.tles
+        for name, l1, l2 in tles:
             try:
                 fix = propagate_tle(name, l1, l2, now)
                 g = ground_geometry(fix.lat, fix.lon, fix.altitude_km, gs_lat, gs_lon)
@@ -61,17 +72,27 @@ class DigitalTwin:
                             "visibility_duration_min": visibility_duration_minutes(name, l1, l2, gs_lat, gs_lon, now),
                             "utilization_pct": round(self.sat_util.get(name, 0.55) * 100, 1),
                             "provenance_position": "REAL", "provenance_geometry": "DERIVED"})
-            except Exception:
+            except Exception as e:
+                log.warning("satellite state failed for %s: %s", name, e)
                 continue
         return out
 
     def inject_congestion(self, sat_id: str | None = None, util: float = 0.94) -> list[dict]:
         target = sat_id or (self.tles[7][0] if len(self.tles) > 7 else self.tles[0][0])
         self.sat_util[target] = util
-        self.events.extend(demo_congestion_scenario())
-        # push telemetry effect: step sim under load so metrics actually move
-        self.sim.step(dt_s=60, congestion={"sat_util": util, "cell_util": 0.62})
-        # reassign affected devices' latency visibly
+        new_events = demo_congestion_scenario()
+        # stamp the scenario with live twin counts (never stale hardcodes)
+        on_target = sum(1 for d in self.sim.devices.values() if d.serving_satellite == target)
+        for i, e in enumerate(new_events):
+            e["affected_devices"] = on_target if i == 0 else int(on_target * 0.85)
+        self.events.extend(new_events)
+        # push telemetry effect: step sim under load so metrics actually move.
+        # 8 steps lets EMA telemetry converge toward the congested regime,
+        # so the incident is visible in the twin (not just declared).
+        # Congestion is targeted: only devices served by this satellite suffer.
+        for _ in range(8):
+            self.sim.step(dt_s=60, congestion={"sat_id": target, "sat_util": util,
+                                               "nominal_sat_util": 0.55, "cell_util": 0.62})
         return self.events
 
     def grid_aggregation(self, resolution: float = 0.1) -> list[dict]:

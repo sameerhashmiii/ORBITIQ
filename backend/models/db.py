@@ -1,6 +1,7 @@
 """SQLAlchemy models. Normalized tables (no giant JSON blob state)."""
 from datetime import datetime
-from sqlalchemy import String, Float, Integer, DateTime, JSON, ForeignKey
+
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
