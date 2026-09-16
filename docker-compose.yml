@@ -1,7 +1,7 @@
 services:
   backend:
     build: .
-    ports: ["8000:8000"]
+    ports: ["${BACKEND_PORT:-8000}:8000"]
     environment:
       SIMULATION_SEED: 42
       DATABASE_URL: postgresql://orbitiq:orbitiq@postgres:5432/orbitiq
@@ -9,7 +9,7 @@ services:
     depends_on: [postgres]
   frontend:
     build: ./frontend
-    ports: ["5173:80"]
+    ports: ["${FRONTEND_PORT:-5173}:80"]
     depends_on: [backend]
   postgres:
     image: postgis/postgis:16-3.4
