@@ -1,0 +1,56 @@
+# ORBITIQ data provenance registry.
+# Every dataset consumed or produced by the platform must be listed here.
+# Classification: real | derived | simulated | predicted | recommendation
+
+opencellid:
+  source: "OpenCelliD (https://opencellid.org)"
+  type: real
+  license: "CC BY-SA 4.0"
+  attribution_required: true
+  attribution_text: "Cellular infrastructure data: OpenCelliD"
+  fields: [mcc, mnc, lac, tac, cellid, radio, lat, lon, range_m, samples, updated]
+  fallback: "data/sample/opencellid_sample.csv"
+  classification: "REAL DATA"
+
+celestrak:
+  source: "CelesTrak (https://celestrak.org)"
+  type: "public orbital data"
+  license: "public domain (orbital elements courtesy CelesTrak / USSPACECOM)"
+  attribution_required: true
+  attribution_text: "Orbital data: CelesTrak"
+  fallback: "data/sample/celestrak_sample.tle"
+  classification: "REAL DATA"
+  methodology: "SGP4 propagation via sgp4/skyfield; see docs/data.md"
+
+noaa_space_weather:
+  source: "NOAA SWPC (https://www.swpc.noaa.gov)"
+  type: "public space-weather data"
+  license: "US public domain"
+  attribution_text: "Space weather: NOAA SWPC"
+  fallback: "data/sample/noaa_sw_sample.json"
+  classification: "REAL DATA (contextual only)"
+  note: "Treated as contextual data only; NOT claimed to predict cellular performance."
+
+orbitiq_simulation:
+  source: "ORBITIQ device/network simulator"
+  type: simulated
+  seed_env: "SIMULATION_SEED"
+  default_seed: 42
+  classification: "SIMULATED DATA"
+
+orbitiq_derived:
+  source: "ORBITIQ geometry engine"
+  type: derived
+  examples: [satellite_elevation_deg, azimuth_deg, slant_range_km, visibility, visibility_duration_min]
+  classification: "DERIVED DATA"
+
+orbitiq_ml:
+  source: "ORBITIQ ML models (ml/models/demo/)"
+  type: predicted
+  models: [anomaly_isolation_forest, degradation_random_forest, handoff_scorer]
+  classification: "MODEL PREDICTION"
+
+orbitiq_optimizer:
+  source: "ORBITIQ handoff optimizer"
+  type: recommendation
+  classification: "AI RECOMMENDATION"

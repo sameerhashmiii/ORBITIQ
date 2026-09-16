@@ -1,0 +1,8 @@
+{
+  "source": "NOAA SWPC (sample snapshot)",
+  "kp_index": 2.33,
+  "a_index": 12,
+  "solar_wind_kms": 412.5,
+  "bz_gsm_nt": -1.8,
+  "note": "REAL public-data format snapshot; contextual only, not a performance predictor."
+}

@@ -1,0 +1,26 @@
+name: orbitiq-ci
+on: [push, pull_request]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r backend/requirements.txt
+      - run: python scripts/make_sample_data.py
+      - run: python ml/training/train_all.py
+      - run: ruff check backend ml tests || true
+      - run: python -m mypy backend --ignore-missing-imports || true
+      - run: python -m pytest tests -q --cov=backend --cov-report=term-missing
+      - run: pip install bandit && bandit -r backend -q || true
+      - run: docker build -t orbitiq:${{ github.sha }} .
+  frontend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci
+      - run: npm run build

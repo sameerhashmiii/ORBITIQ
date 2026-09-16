@@ -1,0 +1,29 @@
+/* ORBITIQ — Aerospace Operations Console tokens (dark). */
+:root {
+  --bg: #0b1220;
+  --bg-2: #0f172a;
+  --panel: #111c33;
+  --panel-2: #0d1526;
+  --border: #1e293b;
+  --border-bright: #334155;
+  --text: #e5e7eb;
+  --muted: #94a3b3;
+  --faint: #64748b;
+
+  --sky: #7dd3fc;
+  --blue: #3b82f6;
+  --blue-deep: #1d4ed8;
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --orange: #fb923c;
+  --violet: #a78bfa;
+  --pink: #f472b6;
+  --red: #ef4444;
+
+  --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+}

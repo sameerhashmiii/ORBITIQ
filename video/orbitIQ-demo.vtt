@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00.000 --> 00:05.000
+ORBITIQ is an independent engineering prototype exploring how AI can help manage satellite-to-cellular connectivity.
+
+00:05.000 --> 00:13.000
+ORBITIQ starts with publicly available cellular infrastructure data rather than fabricated topology. [REAL: OpenCelliD]
+
+00:13.000 --> 00:21.000
+It combines this with public orbital data to determine satellite visibility and candidate paths. [REAL: CelesTrak, SGP4]
+
+00:21.000 --> 00:29.000
+The digital twin then models thousands of mobile devices and network conditions. [SIMULATED: 10,000+ devices]
+
+00:29.000 --> 00:39.000
+When a satellite becomes congested, the system detects abnormal behavior. Utilization 72 to 94 percent, latency 42 to 89 milliseconds.
+
+00:39.000 --> 00:47.000
+Machine-learning models predict which users are likely to experience degraded connectivity within five minutes.
+
+00:47.000 --> 00:57.000
+The optimization engine ranks alternative satellite paths and explains why a handoff is recommended.
+
+00:57.000 --> 01:05.000
+Engineers can simulate an outage and compare network behavior before and after the AI recommendation.
+
+01:05.000 --> 01:15.000
+A grounded AI copilot lets engineers investigate incidents using telemetry and model results — never invented data.
+
+01:15.000 --> 01:22.000
+Real data, AI/ML, digital twin, network optimization, GenAI. ORBITIQ — independent research, no proprietary SpaceX data used.
