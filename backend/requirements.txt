@@ -7,7 +7,7 @@ psycopg2-binary==2.9.9
 alembic==1.13.1
 numpy==1.26.4
 pandas==2.2.1
-scikit-learn==1.4.1
+scikit-learn==1.4.2
 scipy==1.12.0
 sgp4==2.22
 skyfield==1.46
