@@ -1,18 +1,41 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { Prov } from '../components/ui';
+
+type Selection =
+  | { kind: 'cell'; data: any }
+  | { kind: 'satellite'; data: any }
+  | { kind: 'incident'; data: any }
+  | null;
+
+function KV({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+      <span className="mono">{k}</span>
+      <span className="readout" style={{ textAlign: 'right' }}>{v}</span>
+    </div>
+  );
+}
+
 export function NetworkMap() {
   const ref = useRef<HTMLDivElement>(null);
   const [info, setInfo] = useState('loading…');
+  const [sel, setSel] = useState<Selection>(null);
+  const [sw, setSw] = useState<any>(null);
+  const cache = useRef<{ cells: any[]; sats: any[]; inc: any[] }>({ cells: [], sats: [], inc: [] });
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const [{ default: maplibregl }, , cells, sats, cov, inc] = await Promise.all([
           import('maplibre-gl'), import('maplibre-gl/dist/maplibre-gl.css'),
-          api.cells(800), api.satellites(), api.coverage(), api.incidents(),
+          api.cells(1500), api.satellites(), api.coverage(), api.incidents(),
         ]);
-        if (cancelled || !ref.current) return;
+        if (cancelled) return;
+        cache.current = { cells: cells.items, sats: sats.items, inc: inc.items || [] };
+        api.spaceWeather().then(setSw).catch(() => {});
+        if (!ref.current) return;
         const map = new maplibregl.Map({
           container: ref.current,
           style: 'https://demotiles.maplibre.org/style.json',
@@ -47,17 +70,37 @@ export function NetworkMap() {
           map.addLayer({ id: 'incidents', type: 'circle', source: 'incidents',
             paint: { 'circle-radius': 9, 'circle-color': '#ef4444',
               'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+          map.on('click', (e: any) => {
+            const feats = map.queryRenderedFeatures(e.point, {
+              layers: ['incidents', 'sats', 'cells'],
+            });
+            if (!feats.length) { setSel(null); return; }
+            const f = feats[0];
+            const id = f.properties?.id;
+            if (f.layer.id === 'cells') {
+              const c = cache.current.cells.find((x: any) => x.cell_id === id);
+              if (c) setSel({ kind: 'cell', data: c });
+            } else if (f.layer.id === 'sats') {
+              const s = cache.current.sats.find((x: any) => x.sat_id === id);
+              if (s) setSel({ kind: 'satellite', data: s });
+            } else {
+              const ev = cache.current.inc.find((x: any) => x.event_id === id);
+              if (ev) setSel({ kind: 'incident', data: ev });
+            }
+          });
+          map.getCanvas().style.cursor = 'pointer';
         });
-        setInfo(`${cells.total} cells [REAL] · ${sats.count} satellites [REAL+DERIVED] · ${cov.grid.length} density grid cells [SIMULATED] · ${inc.items?.length ?? 0} active incidents`);
-      } catch (e: any) { setInfo(`map unavailable: ${e.message}`); }
+        setInfo(`${cells.total} towers [REAL OpenCelliD] · ${sats.count} satellites [REAL CelesTrak + DERIVED] · ${cov.grid.length} density grid cells [SIMULATED] · ${inc.items?.length ?? 0} active incidents — click any marker to inspect`);
+      } catch (e: any) { if (!cancelled) setInfo(`map unavailable: ${e.message}`); }
     })();
     return () => { cancelled = true; };
   }, []);
+
   return (
     <div>
       <section className="hero" style={{ paddingBottom: 20 }} aria-label="Map header">
         <div className="hero-glow" aria-hidden="true" />
-        <p className="mono hero-eyebrow">Digital twin · Geography</p>
+        <p className="mono hero-eyebrow">Digital twin · Geography · Live data</p>
         <h1 className="page-title">Global Map</h1>
         <p className="fine pagelede">
           <Prov label="REAL" /> <Prov label="DERIVED" /> <Prov label="SIMULATED" />
@@ -65,14 +108,63 @@ export function NetworkMap() {
         <hr className="divider" />
         <p className="readout" style={{ marginTop: 12 }}>{info}</p>
       </section>
-      <div className="map-frame">
-        <div ref={ref} className="maplib-wrap" style={{ height: 560, overflow: 'hidden' }} />
+      <div className="topo-cols" style={{ gap: 12 }}>
+        <div className="map-frame">
+          <div ref={ref} className="maplib-wrap" style={{ height: 560, overflow: 'hidden' }} />
+        </div>
+        <div className="inspect" aria-live="polite">
+          <p className="mono">Inspector — click a marker</p>
+          {!sel && <p className="fine">Select a tower, satellite, or incident on the map to see its live record.</p>}
+          {sel?.kind === 'cell' && (
+            <div>
+              <p className="inspect-name" style={{ fontSize: '1.1rem' }}>{sel.data.cell_id}</p>
+              <p className="mono">Cell tower · OpenCelliD [REAL]</p>
+              <KV k="MCC / MNC / TAC" v={`${sel.data.mcc} / ${sel.data.mnc} / ${sel.data.tac}`} />
+              <KV k="Radio" v={sel.data.radio} />
+              <KV k="Location" v={`${sel.data.lat}, ${sel.data.lon}`} />
+              <KV k="Est. range" v={`${sel.data.range_m} m`} />
+              <KV k="Samples" v={sel.data.samples} />
+            </div>)}
+          {sel?.kind === 'satellite' && (
+            <div>
+              <p className="inspect-name" style={{ fontSize: '1.1rem' }}>{sel.data.sat_id}</p>
+              <p className="mono">Orbital object · CelesTrak [REAL] + geometry [DERIVED]</p>
+              <KV k="Position" v={`${sel.data.lat}, ${sel.data.lon}`} />
+              <KV k="Altitude" v={`${sel.data.altitude_km} km`} />
+              <KV k="Elevation / Azimuth" v={`${sel.data.elevation_deg}° / ${sel.data.azimuth_deg}°`} />
+              <KV k="Slant range" v={`${sel.data.slant_range_km} km`} />
+              <KV k="Visible" v={sel.data.visible ? `yes · ~${sel.data.visibility_duration_min} min` : 'no'} />
+              <KV k="Utilization" v={`${sel.data.utilization_pct}%`} />
+            </div>)}
+          {sel?.kind === 'incident' && (
+            <div>
+              <p className="inspect-name" style={{ fontSize: '1.1rem' }}>{sel.data.type}</p>
+              <p className="mono">[{sel.data.severity}] · {sel.data.affected_devices} devices</p>
+              <KV k="Time" v={sel.data.timestamp} />
+              <KV k="Root cause" v={sel.data.root_cause} />
+              <KV k="Action" v={sel.data.recommended_action} />
+              <KV k="Satellites" v={(sel.data.affected_satellites || []).join(', ') || '—'} />
+            </div>)}
+        </div>
       </div>
       <div className="map-legend" aria-label="Map legend">
-        <span><i className="sw sw-cell" />Cell site</span>
-        <span><i className="sw sw-sat" />Satellite</span>
+        <span><i className="sw sw-cell" />Tower (OpenCelliD)</span>
+        <span><i className="sw sw-sat" />Satellite (CelesTrak)</span>
         <span><i className="sw sw-den" />Device density</span>
         <span><i className="sw sw-inc" />Incident</span>
+      </div>
+      <div className="panel" style={{ marginTop: 16 }} aria-label="Space weather">
+        <div className="sec-head">
+          <span className="sec-bar" aria-hidden="true" />
+          <h2 className="sec-title" style={{ fontSize: '1.25rem' }}>Space Weather</h2>
+          <Prov label="REAL" />
+        </div>
+        {sw && sw.kp_index !== undefined ? (
+          <p className="readout">
+            Kp {sw.kp_index} · solar wind {sw.solar_wind_kms} km/s · Bz {sw.bz_gsm_nt} nT · {sw.source}
+            <br /><span className="fine">Contextual display only — never used to predict performance.</span>
+          </p>
+        ) : <p className="fine">Space-weather source unavailable (degraded source, clearly labeled).</p>}
       </div>
     </div>
   );

@@ -22,6 +22,7 @@ export const api = {
   anomalies: () => get<any>('/api/v1/anomalies?limit=200'),
   recommendations: () => get<any>('/api/v1/recommendations'),
   topology: () => get<any>('/api/v1/network/topology'),
+  spaceWeather: () => get<any>('/api/v1/space-weather'),
   whatif: (sat?: string) => post<any>(`/api/v1/whatif/outage${sat ? `?sat_id=${sat}` : ''}`, {}),
   runSim: () => post<any>('/api/v1/simulation/run', { scenario: 'satellite_congestion' }),
   reset: () => post<any>('/api/v1/demo/reset', {}),
