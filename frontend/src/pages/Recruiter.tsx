@@ -18,7 +18,7 @@ export function Recruiter() {
       const rec: any = await api.recommendations();
       push(`07 · AI recommends ${rec.recommended_sat}`);
       push(`08 · Explainability: ${rec.explanation.join(' · ')}`);
-      const w: any = await api.whatif('ORBITIQ-DEMO-07');
+      const w: any = await api.whatif();
       push(`09 · Outage what-if: ${w.before.degraded_users} → ${w.after_ai_optimization.degraded_users} degraded users`);
       const cop: any = await api.copilot('Why did you recommend this satellite?');
       push(`10 · Copilot: ${cop.answer}`);

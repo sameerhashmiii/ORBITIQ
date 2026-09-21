@@ -6,6 +6,9 @@ services:
       SIMULATION_SEED: 42
       DATABASE_URL: postgresql://orbitiq:orbitiq@postgres:5432/orbitiq
       DEMO_MODE: "true"
+      OPENCELLID_API_KEY: ${OPENCELLID_API_KEY:-}
+      ORBITIQ_DATA: ${ORBITIQ_DATA:-}
+      CELESTRAK_URL: ${CELESTRAK_URL:-https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle}
     depends_on: [postgres]
   frontend:
     build: ./frontend

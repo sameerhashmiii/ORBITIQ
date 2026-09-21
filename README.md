@@ -20,6 +20,8 @@ Open <http://localhost:5173> for the command center. API documentation is at <ht
 
 The backend starts with zero API keys: it loads the checked-in OpenCelliD-format cell snapshot and TLE snapshot, loads the committed trained-model artifacts, and seeds the deterministic device simulator (`SIMULATION_SEED=42`). Local defaults are not suitable for a shared environment.
 
+With an `OPENCELLID_API_KEY` in `.env`, tower data is fetched live from OpenCelliD (cached to `data/raw/`); satellite TLEs are always refreshed live from CelesTrak when online, with snapshots as the offline fallback. Set `ORBITIQ_DATA=snapshot` (as CI does) for fully deterministic runs.
+
 Native development (5 steps):
 
 ```bash

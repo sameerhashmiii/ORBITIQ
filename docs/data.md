@@ -6,8 +6,13 @@
 
 ## What is REAL
 - **OpenCelliD cell sites** (mcc/mnc/lac/cellid/radio/lat/lon/range/samples), CC BY-SA 4.0, attributed in UI + API.
-  Demo ships a 1,500-row Bay-Area snapshot (`data/sample/opencellid_sample.csv`) so it runs without an API key.
-- **CelesTrak-style TLEs** propagated with SGP4 (`sgp4` lib). Demo ships 24 valid-format LEO TLEs.
+  With `OPENCELLID_API_KEY` set, the backend fetches live towers for the SF demo
+  corridor (tiled under the per-request area cap, cached to `data/raw/` so credits
+  are spent once; `OPENCELLID_REFRESH=1` refetches). Without a key it uses the
+  1,500-row Bay-Area snapshot (`data/sample/opencellid_sample.csv`).
+- **CelesTrak TLEs, fetched live** (stations group, no key): the twin propagates
+  current real objects (e.g. ISS) with SGP4. Snapshots under `data/sample/` keep
+  offline/CI runs deterministic (`ORBITIQ_DATA=snapshot` forces them).
 - **NOAA SWPC space weather** snapshot — contextual ONLY, never claimed to predict performance.
 
 ## What is DERIVED

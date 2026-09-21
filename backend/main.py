@@ -273,8 +273,9 @@ def simulation_run(req: SimRequest):
 
 
 @app.post("/api/v1/whatif/outage")
-def whatif_outage(sat_id: str = "ORBITIQ-DEMO-07"):
-    return run_outage_scenario(TWIN, sat_id)
+def whatif_outage(sat_id: Optional[str] = None):
+    target = sat_id or (TWIN.tles[7][0] if len(TWIN.tles) > 7 else TWIN.tles[0][0])
+    return run_outage_scenario(TWIN, target)
 
 
 class CopilotRequest(BaseModel):

@@ -14,6 +14,8 @@ htmlcov/
 # ---> Data (large raw dumps not committed)
 data/raw/*.csv
 data/raw/*.gz
+data/raw/*.json
+data/raw/*.tle
 *.db
 # ---> Models (large artifacts — demo artifacts ARE committed under ml/models/demo/)
 ml/models/*.pkl

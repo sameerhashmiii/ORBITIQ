@@ -5,5 +5,6 @@
 - Radio propagation is simplified (no ray-tracing, fading, or 3GPP channel models); capacity partly simulated.
 - All device telemetry is simulated (seeded); ML metrics describe the simulator domain, not real networks.
 - Space weather is contextual display only.
-- Demo TLE set is synthetic-but-valid-format; swap in real CelesTrak TLEs via `CELESTRAK_TLE` env.
+- Demo TLE snapshots are synthetic-but-valid-format; with network access the twin
+  fetches live CelesTrak TLEs instead (swap/refresh via `CELESTRAK_TLE` / `CELESTRAK_REFRESH`).
 - Not suitable for operational telecom deployment (no real OSS/BSS, SON, or regulatory interfaces).

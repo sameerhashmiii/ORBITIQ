@@ -79,7 +79,7 @@ export function Ops() {
       </OpsSection>
 
       <OpsSection title="What-If Simulation" tags={['SIMULATION RESULT']}>
-        <button className="btn-danger" onClick={() => api.whatif('ORBITIQ-DEMO-07').then(setWhatif)}>Simulate SAT outage</button>
+        <button className="btn-danger" onClick={() => api.whatif().then(setWhatif)}>Simulate SAT outage</button>
         {whatif && (
           <div className="compare" role="group" aria-label="Before and after comparison">
             <div className="compare-cell">

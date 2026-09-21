@@ -22,7 +22,7 @@ export const api = {
   anomalies: () => get<any>('/api/v1/anomalies?limit=200'),
   recommendations: () => get<any>('/api/v1/recommendations'),
   topology: () => get<any>('/api/v1/network/topology'),
-  whatif: (sat: string) => post<any>(`/api/v1/whatif/outage?sat_id=${sat}`, {}),
+  whatif: (sat?: string) => post<any>(`/api/v1/whatif/outage${sat ? `?sat_id=${sat}` : ''}`, {}),
   runSim: () => post<any>('/api/v1/simulation/run', { scenario: 'satellite_congestion' }),
   reset: () => post<any>('/api/v1/demo/reset', {}),
   copilot: (q: string) => post<any>('/api/v1/copilot/query', { question: q }),

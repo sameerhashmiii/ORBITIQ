@@ -5,6 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: ${{ github.workspace }}
+      ORBITIQ_DATA: snapshot
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

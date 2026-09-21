@@ -80,7 +80,8 @@ class DigitalTwin:
     def inject_congestion(self, sat_id: str | None = None, util: float = 0.94) -> list[dict]:
         target = sat_id or (self.tles[7][0] if len(self.tles) > 7 else self.tles[0][0])
         self.sat_util[target] = util
-        new_events = demo_congestion_scenario()
+        alt = self.tles[11][0] if len(self.tles) > 11 else (self.tles[1][0] if len(self.tles) > 1 else target)
+        new_events = demo_congestion_scenario(sats=[target, alt])
         # stamp the scenario with live twin counts (never stale hardcodes)
         on_target = sum(1 for d in self.sim.devices.values() if d.serving_satellite == target)
         for i, e in enumerate(new_events):

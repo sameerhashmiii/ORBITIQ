@@ -45,16 +45,22 @@ def make_event(event_type: str, lat: float, lon: float, severity: str = "high",
     }
 
 
-def demo_congestion_scenario(center=(37.7749, -122.4194)) -> list[dict]:
-    """Predefined deterministic incident: SAT congestion -> degradation (recruiter demo)."""
+def demo_congestion_scenario(center=(37.7749, -122.4194), sats=None) -> list[dict]:
+    """Predefined deterministic incident: SAT congestion -> degradation (recruiter demo).
+
+    `sats` carries the live satellite IDs ([primary, secondary]); defaults keep
+    the offline snapshot story readable.
+    """
     lat, lon = center
+    primary = sats[0] if sats else "ORBITIQ-DEMO-07"
+    secondary = sats[1] if sats and len(sats) > 1 else "ORBITIQ-DEMO-11"
     return [
         make_event("SATELLITE_CONGESTION", lat, lon, "high", 0, [],
-                   ["ORBITIQ-DEMO-07"], "offered load exceeded beam capacity",
+                   [primary], "offered load exceeded beam capacity",
                    {"sat_util": [0.55, 0.94], "latency_ms": [61, 111], "packet_loss_pct": [0.4, 1.7]}),
         make_event("SIGNAL_DEGRADATION", lat + 0.05, lon - 0.03, "medium", 0, [],
-                   ["ORBITIQ-DEMO-07"], "SINR drop from congestion",
+                   [primary], "SINR drop from congestion",
                    {"sinr_db": [9.5, 2.1]}),
         make_event("HANDOFF_APPROACHING", lat, lon, "medium", 0, [],
-                   ["ORBITIQ-DEMO-07", "ORBITIQ-DEMO-11"], "visibility window closing in ~4 min", {}),
+                   [primary, secondary], "visibility window closing in ~4 min", {}),
     ]

@@ -33,11 +33,17 @@ def test_cells_real_attribution(client):
     assert "OpenCelliD" in r.json()["attribution"]
 
 
+def _live_sat_id(client, idx: int = 7) -> str:
+    """Resolve a real satellite ID from the twin (live or snapshot names)."""
+    items = client.get("/api/v1/satellites").json()["items"]
+    return items[min(idx, len(items) - 1)]["sat_id"]
+
+
 def test_satellites_derived_geometry(client):
     r = client.get("/api/v1/satellites")
     assert r.status_code == 200
     items = r.json()["items"]
-    assert len(items) >= 20
+    assert len(items) >= 10  # live CelesTrak groups vary; snapshot ships 24
     s = items[0]
     assert -90 <= s["lat"] <= 90 and s["altitude_km"] > 100
     assert "elevation_deg" in s and "slant_range_km" in s
@@ -60,7 +66,8 @@ def test_recommendation_explainable(client):
 
 
 def test_whatif_before_after(client):
-    r = client.post("/api/v1/whatif/outage?sat_id=ORBITIQ-DEMO-07")
+    sat_id = _live_sat_id(client)
+    r = client.post(f"/api/v1/whatif/outage?sat_id={sat_id}")
     assert r.status_code == 200
     body = r.json()
     assert body["before"]["degraded_users"] >= body["after_ai_optimization"]["degraded_users"]
@@ -126,7 +133,7 @@ def test_api_surface_sweep(client):
     for k in ("rsrq_db", "signal_strength_dbm", "candidate_cells", "candidate_satellites"):
         assert k in d, k
     # what-if carries affected cells
-    w = client.post("/api/v1/whatif/outage?sat_id=ORBITIQ-DEMO-07").json()
+    w = client.post(f"/api/v1/whatif/outage?sat_id={_live_sat_id(client)}").json()
     assert "affected_cells_count" in w
     # events carry recommended actions
     evts = client.get("/api/v1/incidents").json()["items"]
