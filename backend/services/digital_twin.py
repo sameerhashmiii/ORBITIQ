@@ -58,8 +58,29 @@ class DigitalTwin:
             "ai_recommendations": len(self.events),
         }
 
+    def satellite_tracks(self, minutes: int = 30, step_s: int = 60) -> list[dict]:
+        """Ground-track polylines (past+future) for each satellite, via SGP4."""
+        from datetime import timedelta
+        now = datetime.now(timezone.utc)
+        tracks = []
+        for name, l1, l2 in self.tles:
+            path = []
+            t = now - timedelta(minutes=minutes)
+            end = now + timedelta(minutes=minutes)
+            while t <= end:
+                try:
+                    fix = propagate_tle(name, l1, l2, t)
+                    path.append([fix.lon, fix.lat])
+                except Exception as e:
+                    log.warning("track point failed for %s: %s", name, e)
+                    break
+                t += timedelta(seconds=step_s)
+            if path:
+                tracks.append({"sat_id": name, "path": path})
+        return tracks
+
     def satellite_states(self, gs_lat: float = 37.7749, gs_lon: float = -122.4194,
-                           limit: Optional[int] = None) -> list[dict]:
+                         limit: Optional[int] = None) -> list[dict]:
         now = datetime.now(timezone.utc)
         out = []
         tles = self.tles[:limit] if limit else self.tles

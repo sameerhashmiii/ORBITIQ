@@ -16,6 +16,7 @@ export const api = {
   health: () => get<any>('/api/v1/network/health'),
   cells: (limit = 500) => get<any>(`/api/v1/cells?limit=${limit}`),
   satellites: () => get<any>('/api/v1/satellites'),
+  tracks: () => get<any>('/api/v1/satellites/tracks?minutes=30&step_s=60'),
   coverage: () => get<any>('/api/v1/coverage'),
   incidents: () => get<any>('/api/v1/incidents'),
   predictions: () => get<any>('/api/v1/predictions?limit=200'),

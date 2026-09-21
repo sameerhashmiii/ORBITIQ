@@ -28,9 +28,9 @@ export function NetworkMap() {
     let cancelled = false;
     (async () => {
       try {
-        const [{ default: maplibregl }, , cells, sats, cov, inc] = await Promise.all([
+        const [{ default: maplibregl }, , cells, sats, cov, inc, trk] = await Promise.all([
           import('maplibre-gl'), import('maplibre-gl/dist/maplibre-gl.css'),
-          api.cells(1500), api.satellites(), api.coverage(), api.incidents(),
+          api.cells(1500), api.satellites(), api.coverage(), api.incidents(), api.tracks(),
         ]);
         if (cancelled) return;
         cache.current = { cells: cells.items, sats: sats.items, inc: inc.items || [] };
@@ -38,23 +38,40 @@ export function NetworkMap() {
         if (!ref.current) return;
         const map = new maplibregl.Map({
           container: ref.current,
-          style: 'https://demotiles.maplibre.org/style.json',
+          style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
           center: [-122.4194, 37.7749], zoom: 8,
         });
         map.on('load', () => {
           const cellGeo = { type: 'FeatureCollection', features: cells.items.map((c: any) => ({
-            type: 'Feature', properties: { id: c.cell_id },
+            type: 'Feature', properties: { id: c.cell_id, radio: c.radio },
             geometry: { type: 'Point', coordinates: [c.lon, c.lat] } })) };
-          map.addSource('cells', { type: 'geojson', data: cellGeo as any });
-          map.addLayer({ id: 'cells', type: 'circle', source: 'cells',
-            paint: { 'circle-radius': 3, 'circle-color': '#22c55e' } });
+          map.addSource('cells', {
+            type: 'geojson', data: cellGeo as any,
+            cluster: true, clusterRadius: 42, clusterMaxZoom: 11,
+          });
+          map.addLayer({ id: 'clusters', type: 'circle', source: 'cells', filter: ['has', 'point_count'],
+            paint: { 'circle-radius': ['step', ['get', 'point_count'], 14, 25, 19, 100, 25],
+              'circle-color': '#0f172a', 'circle-stroke-width': 2, 'circle-stroke-color': '#7dd3fc' } });
+          map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'cells', filter: ['has', 'point_count'],
+            layout: { 'text-field': '{point_count_abbreviated}', 'text-size': 11 },
+            paint: { 'text-color': '#7dd3fc' } });
+          map.addLayer({ id: 'cells-unclustered', type: 'circle', source: 'cells', filter: ['!', ['has', 'point_count']],
+            paint: { 'circle-radius': 4,
+              'circle-color': ['match', ['get', 'radio'], 'LTE', '#22c55e', 'NR', '#7dd3fc',
+                'UMTS', '#f59e0b', 'GSM', '#94a3b8', 'CDMA', '#fb923c', '#64748b'] } });
           const satGeo = { type: 'FeatureCollection', features: sats.items.map((s: any) => ({
             type: 'Feature', properties: { id: s.sat_id },
             geometry: { type: 'Point', coordinates: [s.lon, s.lat] } })) };
           map.addSource('sats', { type: 'geojson', data: satGeo as any });
           map.addLayer({ id: 'sats', type: 'circle', source: 'sats',
-            paint: { 'circle-radius': 6, 'circle-color': '#7dd3fc',
-              'circle-stroke-width': 2, 'circle-stroke-color': '#0b1220' } });
+            paint: { 'circle-radius': 6, 'circle-color': '#ffffff',
+              'circle-stroke-width': 2, 'circle-stroke-color': '#7dd3fc' } });
+          const trackGeo = { type: 'FeatureCollection', features: (trk.tracks || []).map((t: any) => ({
+            type: 'Feature', properties: { id: t.sat_id },
+            geometry: { type: 'LineString', coordinates: t.path } })) };
+          map.addSource('tracks', { type: 'geojson', data: trackGeo as any });
+          map.addLayer({ id: 'tracks', type: 'line', source: 'tracks',
+            paint: { 'line-color': '#7dd3fc', 'line-width': 1.5, 'line-opacity': 0.45 } });
           const denGeo = { type: 'FeatureCollection', features: cov.grid.map((g: any) => ({
             type: 'Feature', properties: { count: g.count, lat: g.avg_latency_ms },
             geometry: { type: 'Point', coordinates: [g.lon, g.lat] } })) };
@@ -71,13 +88,22 @@ export function NetworkMap() {
             paint: { 'circle-radius': 9, 'circle-color': '#ef4444',
               'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
           map.on('click', (e: any) => {
-            const feats = map.queryRenderedFeatures(e.point, {
-              layers: ['incidents', 'sats', 'cells'],
+            // 8px tolerance box: small tower dots stay clickable
+            const tol: any = [[e.point.x - 8, e.point.y - 8], [e.point.x + 8, e.point.y + 8]];
+            const feats = map.queryRenderedFeatures(tol, {
+              layers: ['incidents', 'sats', 'clusters', 'cells-unclustered'],
             });
             if (!feats.length) { setSel(null); return; }
             const f = feats[0];
             const id = f.properties?.id;
-            if (f.layer.id === 'cells') {
+            if (f.layer.id === 'clusters') {
+              const src: any = map.getSource('cells');
+              src.getClusterExpansionZoom(f.properties?.cluster_id, (err: any, zoom: number) => {
+                if (!err) map.easeTo({ center: (f.geometry as any).coordinates, zoom });
+              });
+              return;
+            }
+            if (f.layer.id === 'cells-unclustered') {
               const c = cache.current.cells.find((x: any) => x.cell_id === id);
               if (c) setSel({ kind: 'cell', data: c });
             } else if (f.layer.id === 'sats') {
@@ -148,10 +174,14 @@ export function NetworkMap() {
         </div>
       </div>
       <div className="map-legend" aria-label="Map legend">
-        <span><i className="sw sw-cell" />Tower (OpenCelliD)</span>
-        <span><i className="sw sw-sat" />Satellite (CelesTrak)</span>
+        <span><i className="sw" style={{ background: '#22c55e' }} />LTE</span>
+        <span><i className="sw" style={{ background: '#7dd3fc' }} />NR / Satellite</span>
+        <span><i className="sw" style={{ background: '#f59e0b' }} />UMTS</span>
+        <span><i className="sw" style={{ background: '#94a3b8' }} />GSM</span>
+        <span><i className="sw" style={{ background: '#fb923c' }} />CDMA</span>
         <span><i className="sw sw-den" />Device density</span>
         <span><i className="sw sw-inc" />Incident</span>
+        <span><i className="sw" style={{ background: 'transparent', borderTop: '2px solid #7dd3fc', borderRadius: 0, height: 0, marginTop: 5 }} />Ground track</span>
       </div>
       <div className="panel" style={{ marginTop: 16 }} aria-label="Space weather">
         <div className="sec-head">

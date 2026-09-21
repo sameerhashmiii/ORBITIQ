@@ -141,6 +141,16 @@ def satellites(gs_lat: float = 37.7749, gs_lon: float = -122.4194):
             "inference_ms": round((time.time() - t0) * 1000, 1)}
 
 
+@app.get("/api/v1/satellites/tracks")
+def satellite_tracks(minutes: int = Query(30, ge=5, le=60), step_s: int = Query(60, ge=30, le=300)):
+    t0 = time.time()
+    tracks = TWIN.satellite_tracks(minutes=minutes, step_s=step_s)
+    return {"tracks": tracks, "count": len(tracks),
+            "attribution": "Orbital data: CelesTrak (public TLE, SGP4)",
+            "provenance": "REAL position + DERIVED ground tracks",
+            "compute_ms": round((time.time() - t0) * 1000, 1)}
+
+
 @app.get("/api/v1/devices")
 def devices(limit: int = Query(200, ge=1, le=2000)):
     return {"items": TWIN.sim.snapshot(limit), "total": len(TWIN.sim.devices), "provenance": "SIMULATED"}

@@ -16,6 +16,7 @@ data/raw/*.csv
 data/raw/*.gz
 data/raw/*.json
 data/raw/*.tle
+data/raw/.*
 *.db
 # ---> Models (large artifacts — demo artifacts ARE committed under ml/models/demo/)
 ml/models/*.pkl

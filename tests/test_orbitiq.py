@@ -103,6 +103,17 @@ def test_satellite_visibility_math():
     assert g2["visible"] is False
 
 
+def test_satellite_tracks_shape(client):
+    r = client.get("/api/v1/satellites/tracks?minutes=10&step_s=120")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["count"] >= 10
+    t0 = body["tracks"][0]
+    assert len(t0["path"]) == 11  # -10..+10 min at 120 s steps
+    lon, lat = t0["path"][0]
+    assert -180 <= lon <= 180 and -90 <= lat <= 90
+
+
 def test_api_surface_sweep(client):
     """Exercise remaining endpoints so coverage reflects the real surface."""
     assert client.get("/api/v1/devices?limit=5").status_code == 200

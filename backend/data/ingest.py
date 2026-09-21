@@ -18,6 +18,7 @@ SAMPLE_TLE = ROOT / "data" / "sample" / "celestrak_sample.tle"
 SAMPLE_SW = ROOT / "data" / "sample" / "noaa_sw_sample.json"
 LIVE_CELL_CACHE = ROOT / "data" / "raw" / "opencellid_live.json"
 LIVE_TLE_CACHE = ROOT / "data" / "raw" / "celestrak.tle"
+COOLDOWN_FILE = ROOT / "data" / "raw" / ".opencellid_cooldown"
 
 OPENCELLID_AREA_URL = "https://opencellid.org/cell/getInArea"
 # Demo corridor: San Francisco core. Tiles stay under OpenCelliD's
@@ -28,7 +29,40 @@ MAX_LIVE_CELLS = 2000
 MAX_LIVE_REQUESTS = 120
 
 
+def _cooling_down() -> bool:
+    """True while a recorded daily-limit cooldown is in effect (UTC midnight)."""
+    try:
+        if COOLDOWN_FILE.exists():
+            import time
+            retry_after = float(COOLDOWN_FILE.read_text().strip())
+            if time.time() < retry_after:
+                return True
+            COOLDOWN_FILE.unlink()
+    except Exception as e:
+        log.debug("cooldown check failed: %s", e)
+    return False
+
+
+def _record_cooldown() -> None:
+    """Stop live attempts until next UTC midnight (quota resets daily)."""
+    try:
+        import datetime as _dt
+        now = _dt.datetime.now(_dt.timezone.utc)
+        midnight = (now + _dt.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        COOLDOWN_FILE.parent.mkdir(parents=True, exist_ok=True)
+        COOLDOWN_FILE.write_text(str(midnight.timestamp()))
+        log.warning("OpenCelliD daily limit hit; cooling down until UTC midnight")
+    except Exception as e:
+        log.debug("cooldown record failed: %s", e)
+
+
+def _is_quota_error(data: dict) -> bool:
+    return isinstance(data, dict) and data.get("code") in (7, 8, 9)  # daily/rate limit family
+
+
 def _snapshot_mode() -> bool:
+    """Deterministic offline mode: snapshots only, no network (used by CI)."""
+    return os.getenv("ORBITIQ_DATA", "").lower() == "snapshot"
     """Deterministic offline mode: snapshots only, no network (used by CI)."""
     return os.getenv("ORBITIQ_DATA", "").lower() == "snapshot"
 
@@ -77,12 +111,15 @@ def load_cells(limit: int = 5000, source_csv: str | None = None) -> list[dict]:
     if source_csv:
         return _load_csv(Path(source_csv), limit)
     if not _snapshot_mode() and os.getenv("OPENCELLID_API_KEY"):
-        try:
-            cells = _load_live_cells(limit)
-            if cells:
-                return cells
-        except Exception as e:
-            log.warning("live OpenCelliD fetch failed, falling back: %s", e)
+        if _cooling_down():
+            log.info("OpenCelliD cooling down; using snapshot/cache")
+        else:
+            try:
+                cells = _load_live_cells(limit)
+                if cells:
+                    return cells
+            except Exception as e:
+                log.warning("live OpenCelliD fetch failed, falling back: %s", e)
     if not _snapshot_mode():
         cached = _load_live_cache(limit)
         if cached:
@@ -122,20 +159,24 @@ def _load_live_cache(limit: int) -> list[dict]:
 
 
 def _load_live_cells(limit: int) -> list[dict]:
-    """Fetch real towers from OpenCelliD, tiled under the per-request area cap."""
+    """Fetch real towers from OpenCelliD, tiled under the per-request area cap.
+
+    Tiles the WHOLE corridor first, then spatially-uniform subsamples to the
+    target — otherwise the first tiles fill the quota and towers bunch up in
+    one corner of the map.
+    """
     import httpx
     if os.getenv("OPENCELLID_REFRESH") != "1" and LIVE_CELL_CACHE.exists():
         return _load_live_cache(limit)  # credits cost nothing twice
     key = os.getenv("OPENCELLID_API_KEY", "")
     latmin, lonmin, latmax, lonmax = DEMO_BBOX
-    cells: list[dict] = []
+    pool: list[dict] = []
     seen: set[str] = set()
     reqs = 0
     lat = latmin
-    target = min(limit, MAX_LIVE_CELLS)
-    while lat < latmax and len(cells) < target and reqs < MAX_LIVE_REQUESTS:
+    while lat < latmax and reqs < MAX_LIVE_REQUESTS:
         lon = lonmin
-        while lon < lonmax and len(cells) < target and reqs < MAX_LIVE_REQUESTS:
+        while lon < lonmax and reqs < MAX_LIVE_REQUESTS:
             tile = (lat, lon, min(lat + TILE_DEG, latmax), min(lon + TILE_DEG, lonmax))
             offset = 0
             while True:
@@ -147,6 +188,8 @@ def _load_live_cells(limit: int) -> list[dict]:
                 r.raise_for_status()
                 data = r.json()
                 if "error" in data:
+                    if _is_quota_error(data):
+                        _record_cooldown()
                     raise RuntimeError(f"OpenCelliD: {data}")
                 batch = data.get("cells", [])
                 for row in batch:
@@ -156,19 +199,24 @@ def _load_live_cells(limit: int) -> list[dict]:
                         continue
                     if norm and norm["cell_id"] not in seen:
                         seen.add(norm["cell_id"])
-                        cells.append(norm)
-                if len(batch) < 50 or len(cells) >= target or reqs >= MAX_LIVE_REQUESTS:
+                        pool.append(norm)
+                if len(batch) < 50 or reqs >= MAX_LIVE_REQUESTS:
                     break
                 offset += 50
             lon += TILE_DEG
         lat += TILE_DEG
-    if not cells:
+    if not pool:
         raise RuntimeError("live fetch returned no cells")
+    # Even geographic coverage: stable sort, then uniform stride to target.
+    pool.sort(key=lambda c: c["cell_id"])
+    target = min(limit, MAX_LIVE_CELLS)
+    stride = max(1, len(pool) // target)
+    cells = pool[::stride][:target]
     LIVE_CELL_CACHE.parent.mkdir(parents=True, exist_ok=True)
     LIVE_CELL_CACHE.write_text(json.dumps(
-        {"cells": cells[:target], "bbox": DEMO_BBOX}, indent=1))
-    log.info("fetched %d live cells in %d requests (cached)", len(cells[:target]), reqs)
-    return cells[:target]
+        {"cells": cells, "bbox": DEMO_BBOX, "pool": len(pool)}, indent=1))
+    log.info("fetched %d live cells (pool %d) in %d requests (cached)", len(cells), len(pool), reqs)
+    return cells
 
 
 def _resolve_cell_source() -> Path:
