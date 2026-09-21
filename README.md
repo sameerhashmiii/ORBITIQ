@@ -34,7 +34,7 @@ cd frontend && npm ci && npm run dev
 
 ## Guided Demo
 
-Press **▶ Run Demo** in the header (or `POST /api/v1/simulation/run`), then work the Ops AI page top to bottom. For the fully automatic version, open **Recruiter Mode** and press **Start recruiter tour** (`GET /api/v1/demo/recruiter-script`):
+Press **▶ Run Demo** in the header (or `POST /api/v1/simulation/run`), then work the Ops AI page top to bottom. For the fully automatic version, open **Guided Tour** and press **Start guided tour** (`GET /api/v1/demo/recruiter-script`):
 
 1. Real cellular infrastructure appears on the map (1,500 OpenCelliD-format sites).
 2. Live SGP4 satellite positions appear (24 orbital objects, elevation/slant-range/visibility per site).

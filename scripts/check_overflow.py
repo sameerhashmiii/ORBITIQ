@@ -7,7 +7,7 @@ including the Ops page AFTER driving long AI-generated content into it
 from playwright.sync_api import sync_playwright
 
 BASE = "http://127.0.0.1:5173"
-ROUTES = ["#/", "#/map", "#/ops", "#/topology", "#/sources", "#/recruiter"]
+ROUTES = ["#/", "#/map", "#/ops", "#/topology", "#/sources", "#/tour", "#/recruiter"]
 VIEWPORTS = [(1280, 720), (390, 844)]
 
 

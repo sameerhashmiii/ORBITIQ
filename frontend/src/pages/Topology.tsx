@@ -28,7 +28,8 @@ export function Topology() {
               <h4>{type} — {nodes.length}</h4>
               <ul>
                 {nodes.slice(0, 30).map((n: any) => (
-                  <li key={n.id}><button onClick={() => setSel(n)} aria-label={`Inspect ${n.id}`}>{n.id} →</button></li>))}
+                  <li key={n.id}><button className={sel?.id === n.id ? 'active' : ''} aria-pressed={sel?.id === n.id}
+                    onClick={() => setSel(n)} aria-label={`Inspect ${n.id}`}>{n.id} →</button></li>))}
               </ul>
             </div>))}
         </div>

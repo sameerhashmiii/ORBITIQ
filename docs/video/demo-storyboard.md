@@ -18,7 +18,7 @@ handoff → what-if → copilot → final).
 
 ## Deterministic manual alternative (no Playwright/ffmpeg-python)
 1. `docker compose up --build` (or backend `uvicorn backend.main:app` + `cd frontend && npm run dev`)
-2. Open `http://localhost:5173/#/recruiter`, press **Start Recruiter Tour** (drives the 12-step story deterministically).
+2. Open `http://localhost:5173/#/tour`, press **Start guided tour** (drives the 12-step story deterministically).
 3. Record with FFmpeg:
    `ffmpeg -f avfoundation -i 1 -r 30 raw.mp4` (macOS) or `ffmpeg -f x11grab -i :0.0 raw.mp4` (Linux)
 4. Narration: `docs/video/demo-narration.txt` (macOS `say`, or any TTS) → `narration.wav`

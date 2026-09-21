@@ -336,7 +336,7 @@ def demo_reset():
 
 @app.get("/api/v1/demo/recruiter-script")
 def recruiter_script():
-    """Deterministic 12-step ~3-minute recruiter narration."""
+    """Deterministic 12-step ~3-minute guided-tour narration (stable API name)."""
     return {"steps": [
         {"t": 0, "title": "Real cellular infrastructure appears", "action": "GET /api/v1/cells"},
         {"t": 15, "title": "Satellite trajectories appear", "action": "GET /api/v1/satellites"},

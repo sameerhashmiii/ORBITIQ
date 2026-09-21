@@ -315,6 +315,7 @@ table.dtable { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }
   box-sizing: border-box; transition: background-color 120ms, color 120ms;
 }
 .topo-group li button:hover { background: rgba(125, 211, 252, 0.1); color: #fff; }
+.topo-group li button.active { background: rgba(125, 211, 252, 0.18); color: #fff; }
 .topo-group li button:focus-visible { outline: 2px solid var(--sky); outline-offset: -2px; }
 .inspect {
   background: linear-gradient(180deg, #132036, var(--panel-2));

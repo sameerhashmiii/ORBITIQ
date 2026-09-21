@@ -4,7 +4,7 @@ COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./backend/
 COPY ml/ ./ml/
-COPY data/sample/ ./data/sample/
+COPY data/ ./data/
 COPY data_sources.yaml .
 ENV SIMULATION_SEED=42 PYTHONPATH=/app
 EXPOSE 8000

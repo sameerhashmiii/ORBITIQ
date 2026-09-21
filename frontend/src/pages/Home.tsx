@@ -7,7 +7,7 @@ const INDEX: Array<[string, string, string, string]> = [
   ['02', 'Operations AI', 'Anomaly, prediction, handoff, what-if and copilot.', '#/ops'],
   ['03', 'Topology', 'Devices, cells, satellites and ground stations.', '#/topology'],
   ['04', 'Data & Methodology', 'What is real, derived, simulated and predicted.', '#/sources'],
-  ['05', 'Recruiter Mode', 'The full story in three automatic minutes.', '#/recruiter'],
+  ['05', 'Guided Tour', 'The full story in three automatic minutes.', '#/tour'],
 ];
 
 export function Home() {
@@ -29,7 +29,7 @@ export function Home() {
         </div>
         <div className="hero-cta">
           <a className="btn btn-primary" href="#video">▶ Watch the 90-second demo</a>
-          <a className="btn btn-success" href="#/recruiter">▶ Launch interactive demo</a>
+          <a className="btn btn-success" href="#/tour">▶ Launch interactive demo</a>
         </div>
         <div className="stat-grid">
           <Stat title="Connected devices" value={h?.connected_devices?.toLocaleString() ?? '…'} prov="SIMULATED" />

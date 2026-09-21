@@ -10,7 +10,7 @@ from sklearn.ensemble import IsolationForest
 
 from backend.ml.features import ANOMALY_FEATURES
 
-MODEL_PATH = Path("ml/models/demo/anomaly_iforest.pkl")
+MODEL_PATH = Path(__file__).resolve().parents[2] / "ml" / "models" / "demo" / "anomaly_iforest.pkl"
 
 
 def train_anomaly(df: pd.DataFrame) -> dict:

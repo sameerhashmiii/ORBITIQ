@@ -61,8 +61,9 @@ def main():
     df = build_dataset()
     a = train_anomaly(df)
     d = train_degradation(df)
-    Path("ml/evaluation").mkdir(parents=True, exist_ok=True)
-    Path("ml/evaluation/last_run.json").write_text(json.dumps({"anomaly": a, "degradation": d}, indent=2))
+    root = Path(__file__).resolve().parents[2]
+    (root / "ml" / "evaluation").mkdir(parents=True, exist_ok=True)
+    (root / "ml" / "evaluation" / "last_run.json").write_text(json.dumps({"anomaly": a, "degradation": d}, indent=2))
     print(json.dumps({"anomaly": a, "degradation": d}, indent=2))
 
 

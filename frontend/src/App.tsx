@@ -6,7 +6,7 @@ import { NetworkMap } from './pages/NetworkMap';
 import { Ops } from './pages/Ops';
 import { Topology } from './pages/Topology';
 import { DataSources } from './pages/DataSources';
-import { Recruiter } from './pages/Recruiter';
+import { GuidedTour } from './pages/GuidedTour';
 export function App() {
   const [route, setRoute] = useState(window.location.hash || '#/');
   const [, force] = useState(0);
@@ -29,7 +29,7 @@ export function App() {
           : route.startsWith('#/ops') ? <Ops />
           : route.startsWith('#/topology') ? <Topology />
           : route.startsWith('#/sources') ? <DataSources />
-          : route.startsWith('#/recruiter') ? <Recruiter /> : <Home />}
+          : route.startsWith('#/tour') || route.startsWith('#/recruiter') ? <GuidedTour /> : <Home />}
       </main>
       <Footer />
     </div>

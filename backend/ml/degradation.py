@@ -17,7 +17,7 @@ from sklearn.model_selection import train_test_split
 
 from backend.ml.features import DEGRADATION_FEATURES
 
-MODEL_PATH = Path("ml/models/demo/degradation_rf.pkl")
+MODEL_PATH = Path(__file__).resolve().parents[2] / "ml" / "models" / "demo" / "degradation_rf.pkl"
 
 
 def label_degraded(df: pd.DataFrame) -> pd.Series:

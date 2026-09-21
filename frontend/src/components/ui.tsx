@@ -45,7 +45,7 @@ export function Header({ onRun, onReset }: { onRun: () => void; onReset: () => v
           <a href="#/ops">Ops AI</a>
           <a href="#/topology">Topology</a>
           <a href="#/sources">Data</a>
-          <a href="#/recruiter">Recruiter Mode</a>
+          <a href="#/tour">Guided Tour</a>
           <button className="btn-success" onClick={onRun}>▶ Run Demo</button>
           <button className="btn-ghost" onClick={onReset}>↺ Reset</button>
         </nav>

@@ -1,8 +1,8 @@
 import React from 'react';
 import { Prov } from '../components/ui';
 const ROWS: Array<[string, string, string]> = [
-  ['OpenCelliD cell sites', 'REAL', 'Public infrastructure (CC BY-SA 4.0). Local snapshot fallback; works without API key.'],
-  ['CelesTrak TLE / SGP4 positions', 'REAL', 'Public orbital elements propagated with sgp4.'],
+  ['OpenCelliD cell sites', 'REAL', 'Live towers via API key (cached), snapshot fallback; CC BY-SA 4.0.'],
+  ['CelesTrak TLE / SGP4 positions', 'REAL', 'Live public orbital elements, refreshed when online; snapshot fallback.'],
   ['Elevation / azimuth / slant range / visibility', 'DERIVED', 'Geometry engine (documented simplification).'],
   ['Device telemetry (RSRP, latency, loss, …)', 'SIMULATED', 'Deterministic simulator, SIMULATION_SEED=42.'],
   ['Degradation probability / anomaly score', 'PREDICTION', 'RandomForest + IsolationForest, evaluated (see ml/evaluation).'],
