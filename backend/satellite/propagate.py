@@ -94,11 +94,20 @@ def visibility_duration_minutes(name: str, l1: str, l2: str, gs_lat: float, gs_l
 
 
 def _to_jd_fr(when: datetime):
-    from skyfield.api import load
-    ts = load.timescale()
-    t = ts.from_datetime(when)
-    return t.tt, 0.0  # sgp4 api accepts jd+fr; use tt jd
+    return _timescale().from_datetime(when).tt, 0.0  # sgp4 api accepts jd+fr; use tt jd
     # NOTE: sgp4 typical call uses jday; tt vs ut1 diff is negligible for demo.
+
+
+_TS = None
+
+
+def _timescale():
+    """Shared Skyfield timescale (constructed once — not per propagation)."""
+    global _TS
+    if _TS is None:
+        from skyfield.api import load
+        _TS = load.timescale()
+    return _TS
 
 
 def _eci_to_geodetic(r_eci_km, when: datetime) -> tuple[float, float, float]:
