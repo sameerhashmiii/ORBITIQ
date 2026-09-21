@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../api';
 import { Prov } from '../components/ui';
 
@@ -25,6 +25,7 @@ export function Ops() {
   const [q, setQ] = useState('Why did you recommend this satellite?');
   const [cop, setCop] = useState<any>(null);
   const [inc, setInc] = useState<any>(null);
+  useEffect(() => { api.incidents().then(setInc).catch(() => {}); }, []);
   return (
     <div>
       <section className="hero" style={{ paddingBottom: 20 }} aria-label="Operations header">

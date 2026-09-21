@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Optional
 
@@ -22,9 +23,26 @@ from backend.services.whatif import run_outage_scenario
 
 log = logging.getLogger("orbitiq.api")
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logging.basicConfig(level=settings.log_level)
+    try:
+        init_db()
+    except Exception as e:
+        log.warning("init_db skipped (non-fatal): %s", e)
+    if not TWIN.loaded:
+        TWIN.load(n_cells=1500, n_devices=settings.demo_devices)
+        _seed_reference_data()
+    log.info("ORBITIQ twin ready: %s", TWIN.health())
+    yield
+
+
 app = FastAPI(title="ORBITIQ API",
               description="Independent engineering research prototype inspired by satellite-to-cellular challenges. No proprietary SpaceX data.",
-              version="1.0.0")
+              version="1.0.0",
+              lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list,
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
@@ -91,19 +109,6 @@ async def _lazy_load_twin(request: Request, call_next):
         except Exception as e:
             log.warning("lazy twin load failed: %s", e)
     return await call_next(request)
-
-
-@app.on_event("startup")
-def _startup():
-    logging.basicConfig(level=settings.log_level)
-    try:
-        init_db()
-    except Exception as e:
-        log.warning("init_db skipped (non-fatal): %s", e)
-    if not TWIN.loaded:
-        TWIN.load(n_cells=1500, n_devices=settings.demo_devices)
-        _seed_reference_data()
-    log.info("ORBITIQ twin ready: %s", TWIN.health())
 
 
 @app.get("/health")

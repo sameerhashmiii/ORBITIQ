@@ -1,10 +1,11 @@
 """ORBITIQ global configuration. Single source of truth for env-driven settings."""
 from functools import lru_cache
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     app_name: str = "ORBITIQ"
     simulation_seed: int = 42
     database_url: str = "postgresql://orbitiq:orbitiq@postgres:5432/orbitiq"
@@ -28,10 +29,6 @@ class Settings(BaseSettings):
     # ML
     prediction_horizon_min: int = 5
     model_dir: str = "ml/models/demo"
-
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
 
     @property
     def cors_origin_list(self) -> list[str]:

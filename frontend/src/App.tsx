@@ -22,8 +22,8 @@ export function App() {
   return (
     <div style={{ background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', fontFamily: 'var(--font-body)' }}>
       <a className="skip" href="#main">Skip to content</a>
-      <Header onRun={() => api.runSim().then(() => alert('Demo scenario injected'))}
-        onReset={() => api.reset().then(() => alert('Demo reset'))} />
+      <Header onRun={() => api.runSim().then(() => { window.location.hash = '#/ops'; })}
+        onReset={() => api.reset().then(() => { window.location.hash = '#/'; window.location.reload(); })} />
       <main id="main" className="wrap">
         {route.startsWith('#/map') ? <NetworkMap />
           : route.startsWith('#/ops') ? <Ops />
